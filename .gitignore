@@ -36,3 +36,5 @@
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/flutter_assets/
 **/ios/Runner/GeneratedPluginRegistrant.*
+
+.vscode/
