@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "582048348554",
+    "project_id": "fortivusmobile-60f86",
+    "storage_bucket": "fortivusmobile-60f86.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582048348554:android:38edf0aed13d166ab6b073",
+        "android_client_info": {
+          "package_name": "br.gov.mt.bea.fortivus_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-8rbQMY1npbEwnD5BKGGR013wJisNTf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

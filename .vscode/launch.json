@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Fortivus (Desenvolvimento)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define",
+                "API_BASE_URL=https://combated.beaifmt.com.br/api",
+                "--dart-define",
+                "ISSUER=https://authd.beaifmt.com.br/realms/dev"
+            ]
+        },
+        {
+            "name": "Fortivus (Homologação)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define",
+                "API_BASE_URL=https://combateh.beaifmt.com.br/api",
+                "--dart-define",
+                "ISSUER=https://authh.beaifmt.com.br/realms/hom"
+            ]
+        }
+    ]
+}
