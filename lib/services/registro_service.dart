@@ -8,7 +8,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'local_db_service.dart';
-import '../model/registro.dart';
+import '../database/app_database.dart' as db;
+import '../enums/enums.dart';
+import '../model/despacho.dart' as model;
 import 'sync_service.dart';
 
 class RegistroServiceException implements Exception {
@@ -16,11 +18,7 @@ class RegistroServiceException implements Exception {
   final String? code;
   final int? statusCode;
 
-  RegistroServiceException(
-    this.message, {
-    this.code,
-    this.statusCode,
-  });
+  RegistroServiceException(this.message, {this.code, this.statusCode});
 
   @override
   String toString() => 'RegistroServiceException: $message';
@@ -31,7 +29,8 @@ class RegistroService {
   factory RegistroService() => _instance;
   RegistroService._internal();
 
-  String get baseUrl => "${EnvironmentConfig.apiBaseUrl}/registro_ocorrencia";
+  String get baseUrl =>
+      '${EnvironmentConfig.apiBaseUrl}/v1/operacional/despachos';
 
   bool _isSyncInProgress = false;
   DateTime? _lastSyncTime;
@@ -55,31 +54,27 @@ class RegistroService {
   }
 
   Future<String?> _getLoggedUserSub() async {
-    if (_isCacheValid()) {
-      return _cachedUserSub;
-    }
+    if (_isCacheValid()) return _cachedUserSub;
     await _refreshUserSubCache();
     return _cachedUserSub;
   }
 
   bool _isCacheValid() {
-    if (_cachedUserSub == null || _lastCacheTime == null) {
-      return false;
-    }
+    if (_cachedUserSub == null || _lastCacheTime == null) return false;
     return DateTime.now().difference(_lastCacheTime!) < _cacheValidityTime;
   }
 
   Future<void> _refreshUserSubCache() async {
     try {
-      final user = await LocalDbService.getLoggedUser();
-      if (user?.token != null) {
-        _cachedUserSub = _extractSubFromToken(user!.token!);
-      } else {
-        _cachedUserSub = user?.sub;
+      final userMap = await LocalDbService.instance.getUserAsMap();
+      if (userMap != null) {
+        final token = userMap['token'] as String?;
+        if (token != null) {
+          _cachedUserSub = _extractSubFromToken(token);
+        }
+        _cachedUserSub ??= userMap['sub'] as String?;
       }
       _lastCacheTime = DateTime.now();
-
-      _log('Cache atualizado: $_cachedUserSub');
     } catch (e) {
       _log('Erro ao atualizar cache: $e');
     }
@@ -89,8 +84,7 @@ class RegistroService {
     try {
       final decoded = JwtDecoder.decode(token);
       return decoded['sub'] as String?;
-    } catch (e) {
-      _log('Erro ao extrair sub do token: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -98,10 +92,25 @@ class RegistroService {
   void clearUserCache() {
     _cachedUserSub = null;
     _lastCacheTime = null;
-    _log('Cache de usuário limpo');
   }
 
-  /// Sincronizar todos os registros
+  model.Despacho _driftToModel(db.Despacho d) => model.Despacho(
+        id: d.id,
+        ordemServicoId: d.ordemServicoId,
+        escalaId: d.escalaId,
+        responsavelId: d.responsavelId,
+        categoria: CategoriaOperacao.fromString(d.categoria),
+        descricaoTarefa: d.descricaoTarefa,
+        status: SituacaoDespacho.fromString(d.status),
+        dataInicio:
+            d.dataInicio != null ? DateTime.tryParse(d.dataInicio!) : null,
+        dataFim: d.dataFim != null ? DateTime.tryParse(d.dataFim!) : null,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        isSynced: d.isSynced,
+        userId: d.userId,
+      );
+
   void syncAllRegistros({bool forceSync = false}) {
     _syncDebounceTimer?.cancel();
     _syncDebounceTimer = Timer(_debounceTime, () {
@@ -110,72 +119,34 @@ class RegistroService {
   }
 
   Future<void> _executeSyncAll({bool forceSync = false}) async {
-    if (_isSyncInProgress) {
-      _log('⚠️ Sincronização já em progresso');
-      return;
-    }
+    if (_isSyncInProgress) return;
 
     final now = DateTime.now();
-    if (!forceSync && _shouldSkipSync(now)) {
-      _log('Aguardando intervalo mínimo entre sincronizações');
-      return;
-    }
+    if (!forceSync &&
+        _lastSyncTime != null &&
+        now.difference(_lastSyncTime!) < _minSyncInterval) return;
 
     _isSyncInProgress = true;
     _lastSyncTime = now;
 
     try {
-      _log('🔄 Iniciando sincronização completa');
-
       final userSub = await _getLoggedUserSub();
-      if (userSub == null) {
-        _log('❌ Nenhum usuário logado');
-        return;
-      }
+      if (userSub == null) return;
 
       await _syncResponses();
 
-      final registros = await _fetchAllRegistros();
-      if (registros.isEmpty) {
-        _log('ℹ️ Nenhum registro no servidor');
-        return;
-      }
+      final despachos = await _fetchAllDespachos();
+      if (despachos.isEmpty) return;
 
-      final List<int> ids = registros.map((r) => r.id).toList();
-      await LocalDbService.apagarRegistrosOrfaos(ids, userSub);
-      await LocalDbService.saveRegistros(registros, userSub);
-
-      _log('✅ Sincronização de registros concluída');
-
+      final ids = despachos.map((d) => d.id).toList();
+      await LocalDbService.instance.apagarDespachosOrfaos(ids, userSub);
+      await LocalDbService.instance.saveDespachos(
+        despachos.map((d) => {...d.toMap(), 'userId': userSub}).toList(),
+      );
     } catch (e) {
-      _log('❌ Erro na sincronização: $e');
+      _log('Erro na sincronização: $e');
     } finally {
       _isSyncInProgress = false;
-    }
-  }
-
-  bool _shouldSkipSync(DateTime now) {
-    return _lastSyncTime != null &&
-        now.difference(_lastSyncTime!) < _minSyncInterval;
-  }
-
-  /// Buscar todos os registros do servidor
-  Future<List<Registro>> _fetchAllRegistros() async {
-    try {
-      final countPage = await _fetchPage(size: 1, page: 0);
-      final totalItems = countPage.totalItems;
-
-      _log('Usuário tem $totalItems registros no servidor');
-
-      if (totalItems <= 0) {
-        return [];
-      }
-
-      final allPage = await _fetchPage(size: totalItems, page: 0);
-      return allPage.content;
-    } catch (e) {
-      _log('❌ Erro ao buscar todos os registros: $e');
-      return [];
     }
   }
 
@@ -183,22 +154,31 @@ class RegistroService {
     try {
       SyncService().forceSyncNow();
     } catch (e) {
-      _log('⚠️ Erro ao sincronizar respostas: $e');
+      _log('Erro ao sincronizar respostas: $e');
     }
   }
 
-  Future<Registro?> getRegistro(int id) async {
+  Future<List<model.Despacho>> _fetchAllDespachos() async {
     try {
-      final uri = Uri.parse("$baseUrl/$id");
-      final response = await AuthHttpHelper.get(uri).timeout(_requestTimeout);
-
-      if (response.statusCode == 200) {
-        return Registro.fromJson(jsonDecode(response.body));
-      }
-      return null;
+      final countPage = await _fetchPage(size: 1, page: 0);
+      final total = countPage.totalItems;
+      if (total <= 0) return [];
+      final allPage = await _fetchPage(size: total, page: 0);
+      return allPage.content;
     } catch (e) {
-      _log('Erro ao buscar registro: $e');
-      return await LocalDbService.getRegistroById(id);
+      _log('Erro ao buscar todos os despachos: $e');
+      return [];
+    }
+  }
+
+  Future<model.Despacho?> getRegistro(int id) async {
+    try {
+      final d = await LocalDbService.instance.getDespachoById(id);
+      if (d == null) return null;
+      return _driftToModel(d);
+    } catch (e) {
+      _log('Erro ao buscar despacho local: $e');
+      return null;
     }
   }
 
@@ -209,7 +189,7 @@ class RegistroService {
     String? situacao,
     int page = 0,
     int size = 10,
-    String sort = "desc",
+    String sort = 'desc',
     String? cacheBuster,
     bool skipSync = false,
   }) async {
@@ -219,13 +199,12 @@ class RegistroService {
     }
 
     if (!await _hasConnection()) {
-      _log('Modo offline');
-      return await _getOfflineRegistros(
+      return await _getOfflineDespachos(
         userId: userSub,
-        registroId: registroId,
+        despachoId: registroId,
         ordemServicoId: ordemServicoId,
         categoria: categoria,
-        situacao: situacao,
+        status: situacao,
         page: page,
         size: size,
         sort: sort,
@@ -234,7 +213,7 @@ class RegistroService {
 
     try {
       final resultPage = await _fetchPage(
-        registroId: registroId,
+        despachoId: registroId,
         ordemServicoId: ordemServicoId,
         categoria: categoria,
         situacao: situacao,
@@ -244,23 +223,25 @@ class RegistroService {
         cacheBuster: cacheBuster,
       );
 
-      // Salvar em cache local
-      await LocalDbService.saveRegistros(resultPage.content, userSub);
+      await LocalDbService.instance.saveDespachos(
+        resultPage.content
+            .map((d) => {...d.toMap(), 'userId': userSub})
+            .toList(),
+      );
 
-      // Agendar sincronização completa se necessário
-      if (!skipSync && situacao == "ABERTA" && size < 30) {
+      if (!skipSync && situacao == 'ABERTA' && size < 30) {
         syncAllRegistros();
       }
 
       return resultPage;
     } catch (e) {
-      _log('Erro online, usando cache offline: $e');
-      return await _getOfflineRegistros(
+      _log('Erro online, usando cache: $e');
+      return await _getOfflineDespachos(
         userId: userSub,
-        registroId: registroId,
+        despachoId: registroId,
         ordemServicoId: ordemServicoId,
         categoria: categoria,
-        situacao: situacao,
+        status: situacao,
         page: page,
         size: size,
         sort: sort,
@@ -268,30 +249,27 @@ class RegistroService {
     }
   }
 
-  /// Buscar uma página específica
   Future<RegistroPage> _fetchPage({
-    int? registroId,
+    int? despachoId,
     int? ordemServicoId,
     String? categoria,
     String? situacao,
     required int page,
     required int size,
-    String sort = "desc",
+    String sort = 'desc',
     String? cacheBuster,
   }) async {
-    final params = _buildQueryParams(
-      registroId: registroId,
-      ordemServicoId: ordemServicoId,
-      categoria: categoria,
-      situacao: situacao,
-      page: page,
-      size: size,
-      sort: sort,
-      cacheBuster: cacheBuster,
-    );
+    final params = <String, String>{
+      'page': page.toString(),
+      'size': size.toString(),
+      'sort': sort,
+    };
+    if (cacheBuster != null) params['_t'] = cacheBuster;
 
-    final uri = Uri.parse("$baseUrl/consultar").replace(queryParameters: params);
-    final response = await AuthHttpHelper.get(uri).timeout(_requestTimeout);
+    final uri =
+        Uri.parse('$baseUrl/paged').replace(queryParameters: params);
+    final response =
+        await AuthHttpHelper.get(uri).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw RegistroServiceException(
@@ -300,74 +278,83 @@ class RegistroService {
       );
     }
 
-    return RegistroPage.fromJson(jsonDecode(response.body));
+    final fullPage = RegistroPage.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>);
+
+    if (situacao != null && situacao.isNotEmpty) {
+      final filtered = fullPage.content.where((d) {
+        if (situacao == 'ABERTA') return d.status.isAberta;
+        if (situacao == 'ENCERRADA') return d.status.isConcluido;
+        return d.status.name == situacao;
+      }).toList();
+      return RegistroPage(
+        content: filtered,
+        currentPage: fullPage.currentPage,
+        totalPages: fullPage.totalPages,
+        totalItems: filtered.length,
+      );
+    }
+
+    return fullPage;
   }
 
-   Future<int> getTotalPendentes({bool quickCheck = false}) async {
+  Future<int> getTotalPendentes({bool quickCheck = false}) async {
     final userSub = await _getLoggedUserSub();
     if (userSub == null) return 0;
 
     try {
       if (!await _hasConnection()) {
-        return await _getOfflinePendentesCount(userSub);
+        return await LocalDbService.instance.countAbertos(userId: userSub);
       }
 
       final resultPage = await _fetchPage(
-        situacao: "ABERTA",
+        situacao: 'ABERTA',
         page: 0,
         size: 1,
         cacheBuster: quickCheck ? _getCacheBuster() : null,
       );
 
-      // Verificar discrepância se não for quick check
       if (!quickCheck) {
         await _checkDiscrepancy(userSub, resultPage.totalItems);
       }
 
       return resultPage.totalItems;
     } catch (e) {
-      _log('Erro ao buscar pendentes online: $e');
-      return await _getOfflinePendentesCount(userSub);
+      _log('Erro ao buscar pendentes: $e');
+      return await LocalDbService.instance.countAbertos(userId: userSub);
     }
   }
 
-   Future<int> getTotalEncerrados() async {
+  Future<int> getTotalEncerrados() async {
     final userSub = await _getLoggedUserSub();
     if (userSub == null) return 0;
 
     try {
       if (!await _hasConnection()) {
-        return await _getOfflineEncerradosCount(userSub);
+        return await LocalDbService.instance.countConcluidos(userId: userSub);
       }
 
       final resultPage = await _fetchPage(
-        situacao: "ENCERRADA",
+        situacao: 'ENCERRADA',
         page: 0,
         size: 1,
       );
 
       return resultPage.totalItems;
     } catch (e) {
-      _log('Erro ao buscar encerrados online: $e');
-      return await _getOfflineEncerradosCount(userSub);
+      _log('Erro ao buscar encerrados: $e');
+      return await LocalDbService.instance.countConcluidos(userId: userSub);
     }
   }
 
   Future<void> _checkDiscrepancy(String userSub, int onlineCount) async {
     try {
-      final localPage = await LocalDbService.getOfflineRegistrosPaginated(
-        userId: userSub,
-        situacao: "ABERTA",
-        size: 1,
-      );
+      final localCount =
+          await LocalDbService.instance.countAbertos(userId: userSub);
+      final pendentes =
+          await LocalDbService.instance.getRespostasPendentes();
 
-      final respostasPendentes = await LocalDbService.getRespostasPendentes();
-
-      // Se os números forem diferentes OU se tiver algo na fila de envio, force a sincronização!
-      if (onlineCount != localPage.totalItems || respostasPendentes.isNotEmpty) {
-
-        _log('⚠️ Gatilho ativado! (Online: $onlineCount, Local: ${localPage.totalItems}, Pendentes: ${respostasPendentes.length})');
-
+      if (onlineCount != localCount || pendentes.isNotEmpty) {
         Future.delayed(const Duration(seconds: 3), () {
           syncAllRegistros(forceSync: true);
         });
@@ -377,140 +364,44 @@ class RegistroService {
     }
   }
 
-  Future<int> _getOfflinePendentesCount(String userSub) async {
-    final page = await LocalDbService.getOfflineRegistrosPaginated(
-      userId: userSub,
-      situacao: "ABERTA",
-      size: 1,
-    );
-    return page.totalItems;
-  }
-
-  Future<int> _getOfflineEncerradosCount(String userSub) async {
-    final page = await LocalDbService.getOfflineRegistrosPaginated(
-      userId: userSub,
-      situacao: "ENCERRADA",
-      size: 1,
-    );
-    return page.totalItems;
-  }
-
-  Future<Registro?> criarRegistroAvulsoOnline(
-    String categoria,
-    double lat,
-    double long,
-    String descricao,
-  ) async {
-    try {
-      final url = Uri.parse("$baseUrl/mobile/criar-avulso");
-      final payload = {
-        'categoria': categoria,
-        'latitude': lat,
-        'longitude': long,
-        'descricao': descricao,
-      };
-
-      _log('📤 Criando avulso: $categoria');
-
-      final response = await AuthHttpHelper.post(url, body: payload)
-          .timeout(_requestTimeout);
-
-      // Se a API não retornar sucesso (200 ou 201), lança a exceção
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw RegistroServiceException(
-          'HTTP ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-
-      if (response.body.isEmpty) {
-        throw RegistroServiceException('Response vazio');
-      }
-
-      try {
-        final json = jsonDecode(response.body);
-        final registro = Registro.fromJson(json);
-        _log('✅ Avulso criado: ${registro.id}');
-        return registro;
-      } catch (parseError) {
-        _log('❌ Erro ao fazer parse JSON: $parseError');
-        return null;
-      }
-    } catch (e) {
-      _log('❌ Erro ao criar avulso: $e');
-
-      if (e is RegistroServiceException) {
-        rethrow;
-      }
-
-      return null;
-    }
-  }
-
-  Future<RegistroPage> _getOfflineRegistros({
+  Future<RegistroPage> _getOfflineDespachos({
     required String userId,
-    int? registroId,
+    int? despachoId,
     int? ordemServicoId,
     String? categoria,
-    String? situacao,
+    String? status,
     required int page,
     required int size,
     required String sort,
   }) async {
     try {
-      return await LocalDbService.getOfflineRegistrosPaginated(
+      final dbPage =
+          await LocalDbService.instance.getOfflineDespachosPaginated(
         userId: userId,
-        registroId: registroId,
+        despachoId: despachoId,
         ordemServicoId: ordemServicoId,
         categoria: categoria,
-        situacao: situacao,
+        status: status,
         page: page,
         size: size,
         sort: sort,
+      );
+
+      final modelDespachos = dbPage.content.map(_driftToModel).toList();
+
+      return RegistroPage(
+        content: modelDespachos,
+        currentPage: dbPage.currentPage,
+        totalPages: dbPage.totalPages,
+        totalItems: dbPage.totalItems,
       );
     } catch (e) {
       throw RegistroServiceException('Erro ao buscar offline: $e');
     }
   }
 
-  Map<String, String> _buildQueryParams({
-    int? registroId,
-    int? ordemServicoId,
-    String? categoria,
-    String? situacao,
-    required int page,
-    required int size,
-    required String sort,
-    String? cacheBuster,
-  }) {
-    final params = <String, String>{
-      "page": page.toString(),
-      "size": size.toString(),
-      "sort": sort,
-    };
-
-    if (registroId != null) {
-      params["registroId"] = registroId.toString();
-    }
-
-    if (ordemServicoId != null) {
-      params["ordemServicoId"] = ordemServicoId.toString();
-    }
-
-    if (categoria?.isNotEmpty ?? false) {
-      params["categoriaRegistroOcorrencia"] = categoria!;
-    }
-
-    if (situacao?.isNotEmpty ?? false) {
-      params["situacaoRegistroOcorrencia"] = situacao!;
-    }
-
-    if (cacheBuster != null) params["_t"] = cacheBuster;
-
-    return params;
-  }
-
-  String _getCacheBuster() => DateTime.now().millisecondsSinceEpoch.toString();
+  String _getCacheBuster() =>
+      DateTime.now().millisecondsSinceEpoch.toString();
 
   void _log(String message) {
     if (kDebugMode) debugPrint('[RegistroService] $message');
@@ -527,11 +418,7 @@ class KeycloakException implements Exception {
   final String? errorCode;
   final int? statusCode;
 
-  KeycloakException(
-    this.message, {
-    this.errorCode,
-    this.statusCode,
-  });
+  KeycloakException(this.message, {this.errorCode, this.statusCode});
 
   @override
   String toString() => 'KeycloakException: $message';

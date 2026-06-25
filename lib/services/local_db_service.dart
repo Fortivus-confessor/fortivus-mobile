@@ -208,7 +208,117 @@ class LocalDbService {
   Future<void> incrementOutboxTentativas(int id) =>
       _db.incrementOutboxTentativas(id);
 
+  // ─── HELPERS DE DESPACHO ─────────────────────────────────────────────────
+
+  Future<RespostaPendente?> getRespostaPendenteByDespacho(int despachoId) async {
+    final list = await _db.getRespostasPendentesByStatus('PENDENTE');
+    try {
+      return list.firstWhere((r) => r.despachoId == despachoId);
+    } catch (_) {
+      final erros = await _db.getRespostasPendentesByStatus('ERRO');
+      try {
+        return erros.firstWhere((r) => r.despachoId == despachoId);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  Future<void> removerRespostaPendenteByDespacho(int despachoId) async {
+    final resposta = await getRespostaPendenteByDespacho(despachoId);
+    if (resposta != null) {
+      await _db.deleteRespostaPendente(resposta.id);
+    }
+  }
+
+  Future<void> apagarDespachosOrfaos(List<int> idsServidor, String userId) async {
+    final locais = await _db.getAllDespachos(userId: userId);
+    for (final d in locais) {
+      if (!idsServidor.contains(d.id)) {
+        await _db.deleteDespacho(d.id);
+      }
+    }
+  }
+
+  Future<void> limparConcluidosSincronizados({String? userId}) async {
+    final todos = await _db.getAllDespachos(userId: userId);
+    for (final d in todos) {
+      if (d.status == 'CONCLUIDO' && d.isSynced == 1) {
+        await _db.deleteDespacho(d.id);
+      }
+    }
+  }
+
+  Future<DespachoPage> getOfflineDespachosPaginated({
+    required String userId,
+    int? despachoId,
+    int? ordemServicoId,
+    String? categoria,
+    String? status,
+    int page = 0,
+    int size = 10,
+    String sort = 'desc',
+  }) async {
+    var todos = await _db.getAllDespachos(userId: userId);
+
+    if (despachoId != null) {
+      todos = todos.where((d) => d.id == despachoId).toList();
+    }
+    if (ordemServicoId != null) {
+      todos = todos.where((d) => d.ordemServicoId == ordemServicoId).toList();
+    }
+    if (categoria != null && categoria.isNotEmpty) {
+      todos = todos.where((d) => d.categoria == categoria).toList();
+    }
+    if (status != null && status.isNotEmpty) {
+      if (status == 'ABERTA') {
+        todos = todos
+            .where((d) =>
+                d.status == 'EM_ANDAMENTO' || d.status == 'PENDENTE_RELATORIO')
+            .toList();
+      } else if (status == 'ENCERRADA') {
+        todos = todos.where((d) => d.status == 'CONCLUIDO').toList();
+      } else {
+        todos = todos.where((d) => d.status == status).toList();
+      }
+    }
+
+    if (sort == 'desc') {
+      todos.sort((a, b) => b.id.compareTo(a.id));
+    } else {
+      todos.sort((a, b) => a.id.compareTo(b.id));
+    }
+
+    final totalItems = todos.length;
+    final totalPages = size > 0 ? (totalItems / size).ceil() : 0;
+    final start = page * size;
+    final end = (start + size).clamp(0, totalItems);
+    final pageContent =
+        start < totalItems ? todos.sublist(start, end) : <Despacho>[];
+
+    return DespachoPage(
+      content: pageContent,
+      currentPage: page,
+      totalPages: totalPages,
+      totalItems: totalItems,
+    );
+  }
+
   // ─── UTILITÁRIOS ─────────────────────────────────────────────────────────
 
   Future<void> close() => DatabaseProvider.instance.close();
+}
+
+class DespachoPage {
+  final List<Despacho> content;
+  final int currentPage;
+  final int totalPages;
+  final int totalItems;
+
+  DespachoPage({
+    required this.content,
+    required this.currentPage,
+    required this.totalPages,
+    required this.totalItems,
+  });
 }
