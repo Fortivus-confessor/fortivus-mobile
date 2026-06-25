@@ -1,4 +1,5 @@
 abstract class RespostaModelo {
-  int get id;
+  int get despachoId;
   Map<String, dynamic> toJson();
+  String toJsonString();
 }

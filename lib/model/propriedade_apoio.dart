@@ -1,74 +1,78 @@
-import '../enums/enums.dart';
+import 'package:fortivus_app/enums/enums.dart';
 
 class PropriedadeApoio {
-  String? id;
+  final String? id;
+  final String? nomePropriedade;
+  final String? responsavel;
+  final String? telefone;
+  final double? latitude;
+  final double? longitude;
+  final TipoRegistro tipoRegistro;
+  final TipoApoio? tipoApoio;
+  final int? quantidadeApoio;
+  final String? descricaoApoioOutro;
+  final MotivoRecusa? motivoRecusa;
+  final String? descricaoRecusaOutro;
 
-  String? nomeProprietario;
-  String? nomePropriedade;
-  double? latitude;
-  double? longitude;
-  String? contato;
-  
-  TipoInteracaoPropriedade? tipoInteracao;
-  int? quantidadeMaquinario;
-  int? quantidadeMaoObra;
-  String? apoioOutro;
-  
-  TipoMotivoRecusa? motivoRecusa;
-  String? motivoOutro;
-
-  PropriedadeApoio({
+  const PropriedadeApoio({
     this.id,
-    this.nomeProprietario,
     this.nomePropriedade,
+    this.responsavel,
+    this.telefone,
     this.latitude,
     this.longitude,
-    this.contato,
-    this.tipoInteracao,
-    this.quantidadeMaquinario,
-    this.quantidadeMaoObra,
-    this.apoioOutro,
+    required this.tipoRegistro,
+    this.tipoApoio,
+    this.quantidadeApoio,
+    this.descricaoApoioOutro,
     this.motivoRecusa,
-    this.motivoOutro,
+    this.descricaoRecusaOutro,
   });
 
   factory PropriedadeApoio.fromJson(Map<String, dynamic> json) {
-    T? stringToEnum<T>(List<T> values, String? value) {
-      if (value == null) return null;
-      try { return values.firstWhere((e) => e.toString().split('.').last == value); } catch (_) { return null; }
-    }
-
     return PropriedadeApoio(
-      id: json['id']?.toString(),
-      nomeProprietario: json['responsavel'] ?? json['nomeProprietario'],
-      nomePropriedade: json['nomePropriedade'],
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
-      contato: json['telefone'] ?? json['contato'],
-      
-      tipoInteracao: stringToEnum(TipoInteracaoPropriedade.values, json['tipoInteracao']),
-      quantidadeMaquinario: (json['quantidadeMaquinario'] as num?)?.toInt(),
-      quantidadeMaoObra: (json['quantidadeMaoObra'] as num?)?.toInt(),
-      apoioOutro: json['apoioOutro'],
-      motivoRecusa: stringToEnum(TipoMotivoRecusa.values, json['motivoRecusa']),
-      motivoOutro: json['motivoOutro'],
+      id: json['id'] as String?,
+      nomePropriedade: json['nomePropriedade'] as String?,
+      responsavel: json['responsavel'] as String?,
+      telefone: json['telefone'] as String?,
+      latitude: (json['localizacaoLat'] as num?)?.toDouble(),
+      longitude: (json['localizacaoLng'] as num?)?.toDouble(),
+      tipoRegistro: TipoRegistro.values.firstWhere(
+        (e) => e.name == json['tipoRegistro'],
+        orElse: () => TipoRegistro.APOIO,
+      ),
+      tipoApoio: json['tipoApoio'] != null
+          ? TipoApoio.values.firstWhere(
+              (e) => e.name == json['tipoApoio'],
+              orElse: () => TipoApoio.OUTRO,
+            )
+          : null,
+      quantidadeApoio: json['quantidadeApoio'] as int?,
+      descricaoApoioOutro: json['descricaoApoioOutro'] as String?,
+      motivoRecusa: json['motivoRecusa'] != null
+          ? MotivoRecusa.values.firstWhere(
+              (e) => e.name == json['motivoRecusa'],
+              orElse: () => MotivoRecusa.OUTRO,
+            )
+          : null,
+      descricaoRecusaOutro: json['descricaoRecusaOutro'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'responsavel': nomeProprietario,
+      if (id != null) 'id': id,
       'nomePropriedade': nomePropriedade,
-      'latitude': latitude,
-      'longitude': longitude,
-      'telefone': contato,
-      
-      'tipoInteracao': tipoInteracao?.name,
-      'quantidadeMaquinario': quantidadeMaquinario,
-      'quantidadeMaoObra': quantidadeMaoObra,
-      'apoioOutro': apoioOutro,
-      'motivoRecusa': motivoRecusa?.name,
-      'motivoOutro': motivoOutro,
+      'responsavel': responsavel,
+      'telefone': telefone,
+      'localizacaoLat': latitude,
+      'localizacaoLng': longitude,
+      'tipoRegistro': tipoRegistro.name,
+      if (tipoApoio != null) 'tipoApoio': tipoApoio!.name,
+      'quantidadeApoio': quantidadeApoio,
+      'descricaoApoioOutro': descricaoApoioOutro,
+      if (motivoRecusa != null) 'motivoRecusa': motivoRecusa!.name,
+      'descricaoRecusaOutro': descricaoRecusaOutro,
     };
   }
 }

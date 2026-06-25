@@ -2,8 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 class User {
-  String? id;  
+  String? id;
   String? nome;
+  String? primeiroNome;
   String? email;
   String? telefone;
   DateTime? dataNascimento;
@@ -14,10 +15,15 @@ class User {
   String? unidade;
   String? rg;
   String? perfil;
+  String? estadoOperacional;
+  String? tipoSanguineo;
+  String? fotoUrl;
+  String? centroComandoId;
+  String? equipeId;
   DateTime? dataAdmissao;
   int? failedAttempts;
   bool? accountLocked;
-  String? comandoRegionalId;
+  // campos locais de autenticação offline
   String? token;
   DateTime? expiracaoToken;
   String? hashedPassword;
@@ -26,6 +32,7 @@ class User {
   User({
     this.id,
     this.nome,
+    this.primeiroNome,
     this.email,
     this.telefone,
     this.dataNascimento,
@@ -36,10 +43,14 @@ class User {
     this.unidade,
     this.rg,
     this.perfil,
+    this.estadoOperacional,
+    this.tipoSanguineo,
+    this.fotoUrl,
+    this.centroComandoId,
+    this.equipeId,
     this.dataAdmissao,
     this.failedAttempts,
     this.accountLocked,
-    this.comandoRegionalId,
     this.token,
     this.expiracaoToken,
     this.hashedPassword,
@@ -55,12 +66,14 @@ class User {
   factory User.fromMap(Map<String, dynamic> map) {
     final userId = map['id'] as String?;
     final subFromMap = map['sub'] as String?;
-    final String? calculatedSub = subFromMap ?? (userId != null 
-      ? 'f:0b78a94b-a8a1-4b9c-9edf-8bf770ad6a98:$userId' 
-      : null);
+    final String? calculatedSub = subFromMap ??
+        (userId != null
+            ? 'f:0b78a94b-a8a1-4b9c-9edf-8bf770ad6a98:$userId'
+            : null);
     return User(
       id: userId,
       nome: map['nome'] as String?,
+      primeiroNome: map['primeiroNome'] as String?,
       email: map['email'] as String?,
       telefone: map['telefone'] as String?,
       dataNascimento: map['dataNascimento'] != null
@@ -73,12 +86,16 @@ class User {
       unidade: map['unidade'] as String?,
       rg: map['rg'] as String?,
       perfil: map['perfil'] as String?,
+      estadoOperacional: map['estadoOperacional'] as String?,
+      tipoSanguineo: map['tipoSanguineo'] as String?,
+      fotoUrl: map['fotoUrl'] as String?,
+      centroComandoId: map['centroComandoId'] as String?,
+      equipeId: map['equipeId'] as String?,
       dataAdmissao: map['dataAdmissao'] != null
           ? DateTime.tryParse(map['dataAdmissao'] as String)
           : null,
       failedAttempts: map['failedAttempts'] as int?,
       accountLocked: map['accountLocked'] == true || map['accountLocked'] == 1,
-      comandoRegionalId: map['comandoRegionalId'] as String?,
       token: map['token'] as String?,
       expiracaoToken: map['expiracaoToken'] != null
           ? DateTime.tryParse(map['expiracaoToken'] as String)
@@ -114,6 +131,7 @@ class User {
       return {
         'id': id,
         'nome': nome,
+        'primeiroNome': primeiroNome,
         'email': email,
         'telefone': telefone,
         'dataNascimento': dataNascimento?.toIso8601String(),
@@ -124,10 +142,14 @@ class User {
         'unidade': unidade,
         'rg': rg,
         'perfil': perfil,
+        'estadoOperacional': estadoOperacional,
+        'tipoSanguineo': tipoSanguineo,
+        'fotoUrl': fotoUrl,
+        'centroComandoId': centroComandoId,
+        'equipeId': equipeId,
         'dataAdmissao': dataAdmissao?.toIso8601String(),
         'failedAttempts': failedAttempts,
         'accountLocked': accountLocked == true ? 1 : 0,
-        'comandoRegionalId': comandoRegionalId,
         'token': token,
         'expiracaoToken': expiracaoToken?.toIso8601String(),
         'hashedPassword': hashedPassword,
@@ -144,7 +166,7 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     String? userSub = json['sub'] as String?;
     String? userId = json['id'] as String?;
-    
+
     if (json['token'] != null) {
       try {
         final decodedToken = JwtDecoder.decode(json['token'] as String);
@@ -174,6 +196,7 @@ class User {
     return User(
       id: userId,
       nome: json['nome'] as String?,
+      primeiroNome: json['primeiroNome'] as String?,
       email: json['email'] as String?,
       telefone: json['telefone'] as String?,
       dataNascimento: json['dataNascimento'] != null
@@ -186,12 +209,16 @@ class User {
       unidade: json['unidade'] as String?,
       rg: json['rg'] as String?,
       perfil: json['perfil'] as String?,
+      estadoOperacional: json['estadoOperacional'] as String?,
+      tipoSanguineo: json['tipoSanguineo'] as String?,
+      fotoUrl: json['fotoUrl'] as String?,
+      centroComandoId: json['centroComandoId'] as String?,
+      equipeId: json['equipeId'] as String?,
       dataAdmissao: json['dataAdmissao'] != null
           ? DateTime.tryParse(json['dataAdmissao'] as String)
           : null,
       failedAttempts: json['failedAttempts'] as int?,
       accountLocked: json['accountLocked'] as bool?,
-      comandoRegionalId: json['comandoRegionalId'] as String?,
       token: json['token'] as String?,
       expiracaoToken: json['expiracaoToken'] != null
           ? DateTime.tryParse(json['expiracaoToken'] as String)
@@ -205,6 +232,7 @@ class User {
     return {
       'id': id,
       'nome': nome,
+      'primeiroNome': primeiroNome,
       'email': email,
       'telefone': telefone,
       'dataNascimento': dataNascimento?.toIso8601String().split('T').first,
@@ -215,10 +243,14 @@ class User {
       'unidade': unidade,
       'rg': rg,
       'perfil': perfil,
+      'estadoOperacional': estadoOperacional,
+      'tipoSanguineo': tipoSanguineo,
+      'fotoUrl': fotoUrl,
+      'centroComandoId': centroComandoId,
+      'equipeId': equipeId,
       'dataAdmissao': dataAdmissao?.toIso8601String().split('T').first,
       'failedAttempts': failedAttempts,
       'accountLocked': accountLocked,
-      'comandoRegionalId': comandoRegionalId,
       'token': token,
       'expiracaoToken': expiracaoToken?.toIso8601String(),
       'sub': sub,

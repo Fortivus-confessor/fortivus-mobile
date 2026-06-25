@@ -1,10 +1,19 @@
-enum Reforco {
-  MAIS_GUARNICAO_TERRESTRE("Mais guarnições terrestres"),
-  MAQUINARIO_PESADO("Maquinário Pesado"),
-  APOIO_AEREO("Apoio aéreo"),
-  IMPLANTACAO_SCI("Implantação do SCI"),
-  NENHUM("Nenhum");
+enum TipoReforco {
+  TERRESTRE,
+  AEREO,
+  MAQUINARIO,
+  SCI;
 
-  final String descricao;
-  const Reforco(this.descricao);
+  String get descricao {
+    switch (this) {
+      case TipoReforco.TERRESTRE:
+        return 'Terrestre';
+      case TipoReforco.AEREO:
+        return 'Aéreo';
+      case TipoReforco.MAQUINARIO:
+        return 'Maquinário';
+      case TipoReforco.SCI:
+        return 'SCI';
+    }
+  }
 }
