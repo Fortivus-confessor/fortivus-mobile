@@ -1,16 +1,15 @@
-
+import 'package:fortivus_app/config/environment_config.dart';
 import 'responder_multipart_service.dart';
 
 class ResponderMaquinarioService extends ResponderMultipartService {
   @override
-  String get categoria => 'COMBATE_INCENDIO_MAQUINARIO';
+  String get categoria => 'MAQUINARIO';
 
   @override
-  Uri getEndpointSalvar(int id) =>
-      Uri.parse(
-          '$baseUrl/api/combate-incendio/maquinario/mobile/salvar/$id');
+  Uri getEndpointSalvar(int id) => Uri.parse(
+      '${EnvironmentConfig.apiBaseUrl}/v1/operacional/despachos/finalizar-maquinario');
 
   @override
-  Uri getEndpointBusca(int id) =>
-      Uri.parse('$baseUrl/api/combate-incendio/mobile/$id');
+  Uri getEndpointBusca(int id) => Uri.parse(
+      '${EnvironmentConfig.apiBaseUrl}/v1/operacional/despachos/$id/relatorio-maquinario');
 }
