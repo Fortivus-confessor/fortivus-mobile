@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
-import 'package:fortivus_app/enums/tipo_emprego.dart';
+import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/util/dropdown_util.dart';
 import '../combate_aereo_state.dart';
 import '../../aereo/dialogs/datetime_picker_dialog.dart';
@@ -15,8 +15,6 @@ class DadosOperacionaisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('✈️ [DADOS OPERACIONAIS CARD] build() chamado');
-    
     return Consumer<CombateAereoState>(
       builder: (context, state, _) {
         return TacticalTheme.buildCard(
@@ -47,10 +45,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.horimetroInicialController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Horímetro Inicial',
-              Icons.timer,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Horímetro Inicial', Icons.timer),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         ),
@@ -58,10 +53,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.horimetroFinalController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Horímetro Final',
-              Icons.timer_off,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Horímetro Final', Icons.timer_off),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         ),
@@ -120,7 +112,6 @@ class DadosOperacionaisCard extends StatelessWidget {
               context: context,
               initialDateTime: state.horarioChegada,
             );
-
             if (resultado != null) {
               state.setHorarioChegada(resultado);
               fieldState.didChange(resultado);
@@ -149,20 +140,17 @@ class DadosOperacionaisCard extends StatelessWidget {
   }
 
   Widget _buildTipoEmprego(CombateAereoState state) {
-    return DropdownButtonFormField<TipoEmprego>(
+    return DropdownButtonFormField<TipoEmpregoAereo>(
       value: state.tipoEmprego,
       isExpanded: true,
       itemHeight: null,
-      decoration: TacticalTheme.buildInputDecoration(
-        'Tipo de Emprego *',
-        Icons.category,
-      ),
-      items: DropdownUtil.buildItems<TipoEmprego>(
-        TipoEmprego.values,
+      decoration: TacticalTheme.buildInputDecoration('Tipo de Emprego *', Icons.category),
+      items: DropdownUtil.buildItems<TipoEmpregoAereo>(
+        TipoEmpregoAereo.values,
         (e) => e.descricao,
       ),
-      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoEmprego>(
-        TipoEmprego.values,
+      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoEmpregoAereo>(
+        TipoEmpregoAereo.values,
         (e) => e.descricao,
       ),
       onChanged: state.setTipoEmprego,
@@ -176,10 +164,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.litrosAguaController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Litros de Água',
-              Icons.water_drop,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Litros de Água', Icons.water_drop),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
@@ -188,10 +173,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.alijamentosController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Alijamentos',
-              Icons.file_upload_outlined,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Lançamentos', Icons.file_upload_outlined),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),

@@ -1,117 +1,104 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:fortivus_app/config/environment_config.dart';
+import 'package:fortivus_app/services/auth_service.dart';
 import 'package:fortivus_app/services/local_db_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart';
-import 'dart:convert';
-import 'dart:io';
 
 class OutboxSyncService {
-  static const String _outboxTable = 'outbox_table';
-  static const String _evidenciaTable = 'evidencia_table';
+  static const int _maxTentativas = 3;
 
   static Future<void> syncOutbox() async {
-    try {
-      final db = await LocalDbService.database;
-      final items = await db.query(
-        _outboxTable,
-        where: 'status = ?',
-        whereArgs: ['PENDENTE'],
-      );
+    final token = await AuthService().getAccessToken();
+    final headers = _buildHeaders(token);
 
-      for (var item in items) {
-        final id = item['id'] as int;
-        final metodo = item['metodo'] as String;
-        final endpoint = item['endpoint'] as String;
-        final payload = item['payload'] as String;
-        final tentativas = (item['tentativas'] as int?) ?? 0;
+    try {
+      final items = await LocalDbService.instance.getPendingOutbox();
+
+      for (final item in items) {
+        if (item.tentativas >= _maxTentativas) continue;
 
         bool success = false;
         try {
-          if (metodo.toUpperCase() == 'POST') {
-            final response = await http.post(
-              Uri.parse(endpoint),
-              headers: {'Content-Type': 'application/json'},
-              body: payload,
-            );
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              success = true;
-            }
-          } else if (metodo.toUpperCase() == 'PUT') {
-            final response = await http.put(
-              Uri.parse(endpoint),
-              headers: {'Content-Type': 'application/json'},
-              body: payload,
-            );
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              success = true;
-            }
-          }
+          final response = await _dispatch(item.metodo, item.endpoint, item.payload, headers);
+          success = response.statusCode >= 200 && response.statusCode < 300;
         } catch (e) {
-          debugPrint('[OutboxSync] Erro no envio: $e');
+          debugPrint('[OutboxSync] Erro no envio (id=${item.id}): $e');
         }
 
         if (success) {
-          await db.update(
-            _outboxTable,
-            {'status': 'SINCRONIZADO', 'erro': null},
-            where: 'id = ?',
-            whereArgs: [id],
-          );
+          await LocalDbService.instance.updateOutboxStatus(item.id, 'SINCRONIZADO');
         } else {
-          await db.update(
-            _outboxTable,
-            {'tentativas': tentativas + 1, 'erro': 'Falha na requisição'},
-            where: 'id = ?',
-            whereArgs: [id],
-          );
+          await LocalDbService.instance.incrementOutboxTentativas(item.id);
+          if (item.tentativas + 1 >= _maxTentativas) {
+            await LocalDbService.instance.updateOutboxStatus(item.id, 'ERRO',
+                erro: 'Max tentativas atingido');
+          }
         }
       }
     } catch (e) {
-      debugPrint('[OutboxSync] Erro global no Outbox: $e');
+      debugPrint('[OutboxSync] Erro global: $e');
     }
   }
 
+  static Future<http.Response> _dispatch(
+      String metodo, String endpoint, String payload, Map<String, String> headers) {
+    final uri = Uri.parse(endpoint);
+    return switch (metodo.toUpperCase()) {
+      'POST'  => http.post(uri, headers: headers, body: payload).timeout(const Duration(seconds: 30)),
+      'PUT'   => http.put(uri, headers: headers, body: payload).timeout(const Duration(seconds: 30)),
+      'PATCH' => http.patch(uri, headers: headers, body: payload).timeout(const Duration(seconds: 30)),
+      _       => Future.error('Método HTTP não suportado: $metodo'),
+    };
+  }
+
+  static Map<String, String> _buildHeaders(String? token) => {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+
+  // ─── EVIDÊNCIAS → attachment-service ──────────────────────────────────────
+
   static Future<void> syncEvidencias() async {
+    final token = await AuthService().getAccessToken();
+    if (token == null) return;
+
     try {
-      final db = await LocalDbService.database;
-      final items = await db.query(
-        _evidenciaTable,
-        where: 'statusSincronizacao = ?',
-        whereArgs: ['PENDENTE'],
-      );
+      final user = await LocalDbService.instance.getUser();
+      if (user == null) return;
 
-      for (var item in items) {
-        final id = item['id'] as int;
-        final ocorrenciaId = item['ocorrenciaId'] as int;
-        final filePath = item['filePath'] as String;
-        final latitude = item['latitude'] as double?;
-        final longitude = item['longitude'] as double?;
-        final file = File(filePath);
+      final evidencias = await LocalDbService.instance.getPendingEvidencias();
 
-        if (!await file.exists()) {
-          await db.update(
-            _evidenciaTable,
-            {'statusSincronizacao': 'ERRO_ARQUIVO_INEXISTENTE'},
-            where: 'id = ?',
-            whereArgs: [id],
-          );
+      for (final ev in evidencias) {
+        final file = File(ev.filePath);
+        if (!file.existsSync()) {
+          await LocalDbService.instance.updateEvidenciaStatus(ev.id, 'ARQUIVO_AUSENTE');
           continue;
         }
 
-        // Simulação de upload multipart
-        bool success = true; // Substituir pelo código de upload real
+        try {
+          final uri = Uri.parse('${EnvironmentConfig.apiBaseUrl}/v1/attachments/upload');
+          final request = http.MultipartRequest('POST', uri)
+            ..headers['Authorization'] = 'Bearer $token'
+            ..fields['despachoId'] = ev.despachoId.toString()
+            ..fields['entityType'] = ev.tipo
+            ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
-        if (success) {
-          await db.update(
-            _evidenciaTable,
-            {'statusSincronizacao': 'SINCRONIZADO'},
-            where: 'id = ?',
-            whereArgs: [id],
+          final streamed = await request.send().timeout(const Duration(seconds: 60));
+          final success = streamed.statusCode >= 200 && streamed.statusCode < 300;
+
+          await LocalDbService.instance.updateEvidenciaStatus(
+            ev.id,
+            success ? 'SINCRONIZADO' : 'ERRO',
           );
+        } catch (e) {
+          debugPrint('[OutboxSync] Erro ao enviar evidência ${ev.id}: $e');
+          await LocalDbService.instance.updateEvidenciaStatus(ev.id, 'ERRO');
         }
       }
     } catch (e) {
-      debugPrint('[OutboxSync] Erro na sincronização de evidências: $e');
+      debugPrint('[OutboxSync] Erro global em syncEvidencias: $e');
     }
   }
 }

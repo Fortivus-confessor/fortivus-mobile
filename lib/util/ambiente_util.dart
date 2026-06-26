@@ -65,8 +65,8 @@ class AmbienteUtil {
       await AuthService().logout();
 
       // Limpa arquivos e banco de dados
-      await LocalDbService.limparTodasAsPastasDeArquivos();
-      await LocalDbService.resetarBancoDados();
+      await LocalDbService.instance.limparTodasAsPastasDeArquivos();
+      await LocalDbService.instance.resetarBancoDados();
 
       // Atualiza as URLs em memória
       await EnvironmentConfig.init();

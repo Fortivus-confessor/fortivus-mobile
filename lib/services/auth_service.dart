@@ -15,6 +15,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:http/http.dart' as http;
+import 'package:bcrypt/bcrypt.dart';
 import 'local_db_service.dart';
 import 'registro_service.dart';
 import '../model/user.dart';
@@ -35,6 +36,7 @@ class AuthService {
   static const String keyIdToken = 'id_token';
   static const String keyCurrentUserSub = 'current_user_sub';
   static const String keyIsOfflineSession = 'is_offline_session';
+  static const String keyOfflinePinHash = 'offline_pin_hash';
 
   static String get apiBaseUrl => EnvironmentConfig.apiBaseUrl;
 
@@ -66,14 +68,41 @@ class AuthService {
     return prefs.getBool(keyIsOfflineSession) ?? false;
   }
 
+  // ── PIN OFFLINE ──────────────────────────────────────────────────────────
+
+  Future<bool> hasOfflinePin() async {
+    final hash = await secureStorage.read(key: keyOfflinePinHash);
+    return hash != null && hash.isNotEmpty;
+  }
+
+  Future<void> setOfflinePin(String pin) async {
+    final hash = BCrypt.hashpw(pin, BCrypt.gensalt());
+    await secureStorage.write(key: keyOfflinePinHash, value: hash);
+  }
+
+  Future<bool> validateOfflinePin(String pin) async {
+    final hash = await secureStorage.read(key: keyOfflinePinHash);
+    if (hash == null) return false;
+    return BCrypt.checkpw(pin, hash);
+  }
+
+  // Login offline: o `password` aqui é o PIN de 6 dígitos definido pelo usuário
+  // (não a senha do Keycloak — OIDC/PKCE nunca expõe a senha ao app).
   Future<User?> loginOffline(String identifier, String password) async {
     if (kDebugMode) {
       debugPrint('[AuthService] 🔒 Tentando login offline unificado para: $identifier');
     }
 
     try {
-      // 1. Delega a validação segura para o LocalDbService (suporta E-mail ou Matrícula)
-      final user = await LocalDbService.authenticateUserOffline(identifier, password);
+      // 1. Verifica se o PIN offline é válido primeiro (fail-fast)
+      final pinValid = await validateOfflinePin(password);
+      if (!pinValid) {
+        if (kDebugMode) debugPrint('[AuthService] ❌ PIN offline inválido.');
+        return null;
+      }
+
+      // 2. Busca o usuário local pelo identificador (email ou matrícula)
+      final user = await LocalDbService.instance.authenticateUserOffline(identifier, password);
 
       if (user == null) {
         if (kDebugMode) {
@@ -288,7 +317,7 @@ class AuthService {
             debugPrint('[AuthService] 📄 Dados recebidos para: ${apiUserData['email']}');
           }
           final user = User.fromJson(apiUserData);
-          await LocalDbService.saveUser(user);
+          await LocalDbService.instance.saveUser(user.toMap());
           if (kDebugMode) {
             debugPrint('[AuthService] ✅ Usuário e credencial offline (Hash) salvos com sucesso.');
           }

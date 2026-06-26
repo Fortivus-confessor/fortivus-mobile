@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:fortivus_app/enums/enums.dart';
+import 'package:fortivus_app/model/resposta_modelo.dart';
 
-class RelatorioMaquinario {
+class RelatorioMaquinario implements RespostaModelo {
   final int despachoId;
   final double? horimetroInicial;
   final double? horimetroFinal;

@@ -1,11 +1,10 @@
-import 'package:fortivus_app/enums/tipo_resultado_incendio.dart';
+import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/widgets/anexos_foto_card.dart';
 import 'package:fortivus_app/widgets/area_atuacao_card.dart';
 import 'package:fortivus_app/widgets/formulario_salvar_button.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:fortivus_app/model/mobile_registro_avulso_request.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
 import '../../../widgets/historico_resultado_card.dart' show HistoricoResultadoCard;
 import 'combate_aereo_state.dart';
@@ -15,42 +14,23 @@ import 'widgets/avaliacao_operacional_card.dart';
 
 class ResponderCombateAereoPage extends StatelessWidget {
   final int? registroId;
-  final RegistroAvulsoTemp? dadosIniciais;
 
   const ResponderCombateAereoPage({
     super.key,
     this.registroId,
-    this.dadosIniciais,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
-      debugPrint('🏗️ [AÉREO PAGE] Construindo com registroId: $registroId');
-      debugPrint('   - isAvulso: ${registroId == null}');
-    }
+    if (kDebugMode) debugPrint('🏗️ [AÉREO PAGE] Construindo com registroId: $registroId');
 
     return ChangeNotifierProvider(
-      create: (_) {
-        if (kDebugMode) debugPrint('🏗️ [AÉREO PAGE] Criando CombateAereoState');
-
-        // ✅ NOVO: Detectar e passar isAvulso
-        final bool isAvulso = registroId == null;
-
-        return CombateAereoState(
-          registroId: registroId,
-          dadosIniciais: dadosIniciais,
-          isAvulso: isAvulso, // ✅ PASSAR FLAG
-        );
-      },
+      create: (_) => CombateAereoState(registroId: registroId),
       child: const _CombateAereoView(),
     );
   }
 }
 
-/// View principal do formulário
-///
-/// Usa Consumer para reagir a mudanças no state
 class _CombateAereoView extends StatefulWidget {
   const _CombateAereoView();
 
@@ -63,30 +43,18 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
   Widget build(BuildContext context) {
     return Consumer<CombateAereoState>(
       builder: (context, state, _) {
-        if (kDebugMode) {
-          debugPrint(
-              '🔧 [AÉREO VIEW] isLoading: ${state.isLoading}, idRegistroAtual: ${state.idRegistroAtual}');
-        }
-
-        // ✅ CORRIGIDO: Mostra loading sempre que estiver carregando
         if (state.isLoading) {
           return Scaffold(
             backgroundColor: TacticalTheme.background,
             appBar: AppBar(
-              title: const Text(
-                'Combate Aéreo',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: const Text('Combate Aéreo', style: TextStyle(fontWeight: FontWeight.bold)),
               backgroundColor: TacticalTheme.primary,
               foregroundColor: Colors.white,
             ),
-            body: const Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Formulário
         return PopScope(
           canPop: !state.isLoading,
           child: Scaffold(
@@ -101,20 +69,14 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
 
   AppBar _buildAppBar(CombateAereoState state) {
     return AppBar(
-      title: const Text(
-        'Combate Aéreo',
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
+      title: const Text('Combate Aéreo', style: TextStyle(fontWeight: FontWeight.bold)),
       backgroundColor: TacticalTheme.primary,
       foregroundColor: Colors.white,
       elevation: 2,
       leading: state.isLoading
           ? const Padding(
               padding: EdgeInsets.all(14),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
             )
           : null,
     );
@@ -140,13 +102,13 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
             const SizedBox(height: 16),
             const AvaliacaoOperacionalCard(),
             const SizedBox(height: 16),
-            HistoricoResultadoCard<TipoResultadoIncendio>(
+            HistoricoResultadoCard<ResultadoOcorrencia>(
               historicoController: state.descricaoOperacaoController,
               resultadoOutroController: state.resultadoDiaController,
-              resultadoSelecionado: state.tipoResultado,
-              onResultadoChanged: state.setTipoResultado,
-              enumValues: TipoResultadoIncendio.values,
-              showResultadoOutro: state.tipoResultado == TipoResultadoIncendio.OUTRO,
+              resultadoSelecionado: state.resultadoOcorrencia,
+              onResultadoChanged: state.setResultadoOcorrencia,
+              enumValues: ResultadoOcorrencia.values,
+              showResultadoOutro: state.resultadoOcorrencia == ResultadoOcorrencia.OUTRO,
               title: "Histórico e Resultado da Operação",
             ),
             const SizedBox(height: 16),
@@ -157,7 +119,6 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
             const SizedBox(height: 24),
             FormularioSalvarButton(
               isLoading: state.isLoading,
-              // Passamos apenas o state. O botão vai cuidar de interpretar a resposta e fechar a tela.
               onSalvar: ({onSucessoAntesDeFechar}) => _executarSalvar(state),
               labelSalvar: 'SALVAR REGISTRO',
               icon: Icons.check,
@@ -169,12 +130,8 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
     );
   }
 
-  // ✅ CORRIGIDO: Retorna Future<String?> (não Future<void>)
-  // Função super enxuta. Retorna Future<String?> direto para o botão.
   Future<String?> _executarSalvar(CombateAereoState state) async {
     if (kDebugMode) debugPrint('💾 [AÉREO PAGE] Chamando state.salvar()');
-
-    // Chama o state. O state devolve null (sucesso) ou a string de erro.
     return await state.salvar();
   }
 }

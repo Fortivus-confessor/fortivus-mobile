@@ -1,22 +1,18 @@
 import 'package:fortivus_app/config/environment_config.dart';
-import 'package:fortivus_app/pages/conscientizacao_educacao_ambiental/detalhes_conscientizacao_page.dart';
-import 'package:fortivus_app/pages/conscientizacao_educacao_ambiental/responder_conscientizacao_page.dart';
 import 'package:fortivus_app/pages/detalhes_registro_page.dart';
 import 'package:fortivus_app/pages/combate_incendio/aereo/responder_combate_incendio_aereo_page.dart';
 import 'package:fortivus_app/pages/combate_incendio/maquinario/responder_combate_incendio_maquinario_page.dart';
 import 'package:fortivus_app/pages/combate_incendio/terrestre/responder_combate_terrestre_page.dart';
-import 'package:fortivus_app/pages/formacao_brigadista_florestal/detalhes_formacao_page.dart';
-import 'package:fortivus_app/pages/formacao_brigadista_florestal/responder_formacao_brigadista_florestal_page.dart';
-import 'package:fortivus_app/pages/ronda/responder_ronda_page.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:fortivus_app/model/registro.dart';
+import 'package:fortivus_app/model/despacho.dart' as model;
 import 'package:fortivus_app/pages/registro_page.dart';
 import 'package:fortivus_app/services/registro_service.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import '../services/local_db_service.dart';
 import 'login_page.dart';
+
 class ConsultaRegistrosPage extends StatefulWidget {
   const ConsultaRegistrosPage({super.key});
 
@@ -25,20 +21,17 @@ class ConsultaRegistrosPage extends StatefulWidget {
 }
 
 class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
-  // Filtros
   final TextEditingController _registroIdController = TextEditingController();
-  final TextEditingController _ordemServicoIdController =
-      TextEditingController();
+  final TextEditingController _ordemServicoIdController = TextEditingController();
   String? _categoria;
   String? _situacao;
 
-  // Dados e paginação
   RegistroPage? _pagina;
   int currentPage = 0;
   int pageSize = 10;
   bool isAscending = false;
   final RegistroService _registroService = RegistroService();
-  String? _loggedUserSub; 
+  String? _loggedUserSub;
 
   @override
   void initState() {
@@ -49,284 +42,131 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
 
   Future<void> _initializeUserAndLoadRegistros() async {
     try {
-      final user = await LocalDbService.getLoggedUser();
-      
-      // Tenta obter o sub do usuário
+      final userMap = await LocalDbService.instance.getUserAsMap();
+
       String? userSub;
-      if (user?.token != null) {
+      final token = userMap?['token'] as String?;
+      if (token != null) {
         try {
-          final decodedToken = JwtDecoder.decode(user!.token!);
-          userSub = decodedToken['sub'] as String?;
+          final decoded = JwtDecoder.decode(token);
+          userSub = decoded['sub'] as String?;
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('[ConsultaRegistrosPage] Erro ao extrair sub do token: $e');
-          }
+          if (kDebugMode) debugPrint('[ConsultaRegistrosPage] Erro ao decodificar token: $e');
         }
       }
-      
-      // Se não conseguiu extrair do token, usa o sub armazenado
-      userSub ??= user?.sub;
+      userSub ??= userMap?['sub'] as String?;
 
       if (userSub == null) {
-        // Se não há usuário logado ou sub, redireciona para o login
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginPage()),
-            (Route<dynamic> route) => false,
+            (route) => false,
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Sessão expirada ou usuário não logado. Por favor, faça login novamente.'),
-            ),
+            const SnackBar(content: Text('Sessão expirada. Por favor, faça login novamente.')),
           );
         }
         return;
       }
 
-      setState(() {
-        _loggedUserSub = userSub;  // Salva o sub do usuário logado
-      });
-
-      if (kDebugMode) {
-        debugPrint('[ConsultaRegistrosPage] Usuário inicializado com sub: $userSub');
-      }
-
-      _loadRegistros();  // Agora que temos o sub, podemos carregar os registros
+      setState(() => _loggedUserSub = userSub);
+      _loadRegistros();
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ConsultaRegistrosPage] Erro ao inicializar usuário: $e');
-      }
+      if (kDebugMode) debugPrint('[ConsultaRegistrosPage] Erro ao inicializar: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao iniciar sessão: ${e.toString()}')),
         );
-        // Redireciona para login em caso de erro
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
+          (route) => false,
         );
       }
     }
   }
 
-  List<Registro> get registros => _pagina?.content ?? [];
+  List<model.Despacho> get despachos => _pagina?.content ?? [];
   int get totalPages => _pagina?.totalPages ?? 1;
   int get totalItems => _pagina?.totalItems ?? 0;
 
   Future<void> _loadRegistros() async {
-    // Só tenta carregar registros se já tivermos o sub do usuário logado
-    if (_loggedUserSub == null) {
-      if (kDebugMode) {
-        debugPrint('[ConsultaRegistrosPage] Sub do usuário não disponível, aguardando inicialização.');
-      }
-      return;
-    }
-
-    setState(() {
-      _pagina = null; // Limpa a página atual para mostrar um loading
-    });
+    if (_loggedUserSub == null) return;
+    setState(() => _pagina = null);
 
     try {
       final pagina = await _registroService.consultarRegistros(
         registroId: int.tryParse(_registroIdController.text),
-            
         ordemServicoId: int.tryParse(_ordemServicoIdController.text),
         categoria: _categoria,
         situacao: _situacao,
         page: currentPage,
         size: pageSize,
-        sort: isAscending ? "asc" : "desc",
+        sort: isAscending ? 'asc' : 'desc',
       );
-
-      setState(() {
-        _pagina = pagina;
-      });
-
+      setState(() => _pagina = pagina);
       if (pagina.totalItems == 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nenhum registro encontrado.')),
+          const SnackBar(content: Text('Nenhum despacho encontrado.')),
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ConsultaRegistrosPage] Erro ao carregar registros: $e');
-      }
-      setState(() {
-        _pagina = null;
-      });
+      if (kDebugMode) debugPrint('[ConsultaRegistrosPage] Erro: $e');
+      setState(() => _pagina = null);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao carregar registros: ${e.toString().replaceFirst('Exception: ', '')}'),
-          ),
+          SnackBar(content: Text('Erro ao carregar: ${e.toString().replaceFirst('Exception: ', '')}')),
         );
       }
     }
   }
 
-
   void _onPageChanged(int page) {
-    setState(() {
-      currentPage = page;
-    });
+    setState(() => currentPage = page);
     _loadRegistros();
   }
 
-  void _navegarParaFormularioResposta(Registro registro) async {
+  void _navegarParaFormularioResposta(model.Despacho despacho) async {
+    final categoriaKey = despacho.categoria.name;
     Widget? page;
-    final categoriaKey = registro.categoria;
-    
+
     switch (categoriaKey) {
-      case 'RONDA':
-        page = ResponderRondaPage(registroId: registro.id);
+      case 'AEREO':
+        page = ResponderCombateAereoPage(registroId: despacho.id);
         break;
-
-      case 'COMBATE_INCENDIO_AEREO':
-        page = ResponderCombateAereoPage(registroId: registro.id);
+      case 'MAQUINARIO':
+        page = ResponderCombateMaquinarioPage(registroId: despacho.id);
         break;
-        
-      case 'COMBATE_INCENDIO_TERRESTRE':
-        page = ResponderCombateTerrestrePage(registroId: registro.id);
-        break;
-
-      case 'COMBATE_INCENDIO_MAQUINARIO':
-        page = ResponderCombateMaquinarioPage(registroId: registro.id);
-        break; 
-      
-      case 'CONSCIENTIZACAO_EDUCACAO_AMBIENTAL':
-        // ✅ CORRIGIDO: Passe os dados do registro
-        page = ResponderConscientizacaoPage(
-          registroId: registro.id,
-          latitudeRo: registro.latitudeRo,
-          longitudeRo: registro.longitudeRo,
-          acaoDespacho: null, // TODO: Se tiver ação prevista no backend, mapeie aqui
-        );
-        break;
-
-      case 'FORMACAO_BRIGADISTA_FLORESTAL':
-        // ✅ NOVO: Navegação para Formação Brigadista
-        page = ResponderFormacaoPage(
-          registroId: registro.id,
-          latitudeRo: registro.latitudeRo,
-          longitudeRo: registro.longitudeRo,
-          dataInicialDespacho: null, // TODO: Se tiver data inicial no backend, mapeie aqui
-          dataFinalDespacho: null, // TODO: Se tiver data final no backend, mapeie aqui
-        );
-        break;
-        
       default:
-        final descricao = registro.categoriaDescricao.toUpperCase();
-        
-        if (descricao.contains('AÉREO') || descricao.contains('AEREO')) {
-          page = ResponderCombateAereoPage(registroId: registro.id);
-        } 
-        else if (descricao.contains('MAQUINÁRIO') || descricao.contains('MAQUINARIO')) {
-          page = ResponderCombateMaquinarioPage(registroId: registro.id);
-        }
-        else if (descricao.contains('RONDA') || descricao.contains('PATRULHAMENTO')) {
-          page = ResponderRondaPage(registroId: registro.id);
-        } 
-        else if (descricao.contains('COMBATE') || descricao.contains('TERRESTRE')) {
-          page = ResponderCombateTerrestrePage(registroId: registro.id);
-        }
-        else if (descricao.contains('CONSCIENTIZAÇÃO') || descricao.contains('CONSCIENTIZACAO') || 
-                descricao.contains('EDUCAÇÃO AMBIENTAL') || descricao.contains('EDUCACAO AMBIENTAL')) {
-          page = ResponderConscientizacaoPage(
-            registroId: registro.id,
-            latitudeRo: registro.latitudeRo,
-            longitudeRo: registro.longitudeRo,
-            acaoDespacho: null,
-          );
-        }
-        else if (descricao.contains('FORMAÇÃO') || descricao.contains('FORMACAO') ||
-                descricao.contains('BRIGADISTA') || descricao.contains('FLORESTAL')) {
-          // ✅ NOVO: Fallback para Formação Brigadista
-          page = ResponderFormacaoPage(
-            registroId: registro.id,
-            latitudeRo: registro.latitudeRo,
-            longitudeRo: registro.longitudeRo,
-            dataInicialDespacho: null,
-            dataFinalDespacho: null,
-          );
-        }
+        page = ResponderCombateTerrestrePage(registroId: despacho.id);
     }
 
-    if (page != null) {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => page!),
-      );
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => page!),
+    );
+    if (result == true) _loadRegistros();
+  }
 
-      if (result == true) {
-        _loadRegistros();
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Formulário não disponível para: $categoriaKey'), 
-            backgroundColor: Colors.red
-          ),
-        );
-      }
+  Widget _getCategoriaIcon(model.Despacho despacho) {
+    switch (despacho.categoria.name) {
+      case 'AEREO':
+        return const Icon(Icons.airplanemode_active, color: Colors.blue, size: 20);
+      case 'MAQUINARIO':
+        return Icon(Icons.agriculture, color: Colors.amber[900], size: 20);
+      default:
+        return const Icon(Icons.local_fire_department, color: Colors.brown, size: 20);
     }
   }
 
-  Widget _getCategoriaIcon(String categoria) {
-  final catLower = categoria.toLowerCase();
-
-  if (catLower.contains('ronda') || catLower.contains('patrulha')) {
-    return const Icon(Icons.security, color: Colors.teal, size: 20);
+  String _formatData(DateTime? dt) {
+    if (dt == null) return '--';
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
-
-  if (catLower.contains('aéreo') || catLower.contains('aereo')) {
-    return const Icon(Icons.airplanemode_active, color: Colors.blue, size: 20);
-  }
-
-  if (catLower.contains('maquinario') || catLower.contains('maquinário')) {
-    return Icon(Icons.agriculture, color: Colors.amber[900], size: 20);
-  }
-  
-  if (catLower.contains('terrestre')) {
-    return const Icon(Icons.local_fire_department, color: Colors.brown, size: 20); 
-  }
-  
-  if (catLower.contains('conscientização') || 
-      catLower.contains('conscientizacao') ||
-      catLower.contains('educação ambiental') ||
-      catLower.contains('educacao ambiental')) {
-    return const Icon(Icons.eco, color: Colors.green, size: 20);
-  }
-
-  if (catLower.contains('formação') || 
-      catLower.contains('formacao') ||
-      catLower.contains('brigadista') || 
-      catLower.contains('florestal')) {
-    return const Icon(Icons.school, color: Colors.purple, size: 20);
-  }
-
-  switch (catLower) {
-    case 'combate incêndio':
-    case 'combate a incêndio':
-      return const Icon(Icons.local_fire_department, color: Colors.red, size: 20);
-      
-    case 'atividade comunitária':
-      return const Icon(Icons.volunteer_activism, color: Colors.purple, size: 20);
-      
-    case 'fiscalização':
-    case 'fiscalizacao':
-      return const Icon(Icons.content_paste_search, color: Colors.orange, size: 20);
-      
-    default:
-      return const Icon(Icons.info_outline, color: Colors.grey, size: 20);
-  }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Muda para roxo escuro em homologação, preto em produção
         backgroundColor: EnvironmentConfig.isHomologacao ? Colors.deepPurple.shade900 : Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
@@ -334,33 +174,15 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/images/logo-fortivus.png', 
-              height: 50,
-            ), 
+            Image.asset('assets/images/logo-fortivus.png', height: 50),
             const SizedBox(height: 4),
-            const Text(
-              'FORTIVUS', 
-              style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)
-            ),
-            
+            const Text('FORTIVUS', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
             if (EnvironmentConfig.isHomologacao)
               Container(
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'HOMOLOGAÇÃO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                  ),
-                ),
+                decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(4)),
+                child: const Text('HOMOLOGAÇÃO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
               ),
           ],
         ),
@@ -373,8 +195,6 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  
-                  // --- CARD DE FILTROS (TEMA TÁTICO) ---
                   Card(
                     elevation: 2,
                     shape: RoundedRectangleBorder(
@@ -390,14 +210,7 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                             children: [
                               Icon(Icons.search, color: TacticalTheme.primary),
                               const SizedBox(width: 8),
-                              Text(
-                                'Filtros de Busca',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: TacticalTheme.primary,
-                                ),
-                              ),
+                              Text('Filtros de Busca', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TacticalTheme.primary)),
                             ],
                           ),
                           const Divider(),
@@ -409,7 +222,7 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                   controller: _registroIdController,
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
-                                    labelText: 'ID Registro', 
+                                    labelText: 'ID Despacho',
                                     isDense: true,
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -422,7 +235,7 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                   controller: _ordemServicoIdController,
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
-                                    labelText: 'ID OS', 
+                                    labelText: 'ID OS',
                                     isDense: true,
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -438,7 +251,7 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                               icon: const Icon(Icons.filter_list),
                               label: const Text('Filtrar'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: TacticalTheme.primary, 
+                                backgroundColor: TacticalTheme.primary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -450,9 +263,9 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
@@ -461,51 +274,37 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                       onPressed: _loadRegistros,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 12),
 
-                  // --- LISTAGEM DOS REGISTROS ---
                   if (_pagina == null)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40), 
-                        child: CircularProgressIndicator()
-                      )
-                    )
-                  else if (registros.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+                  else if (despachos.isEmpty)
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(40), 
+                        padding: const EdgeInsets.all(40),
                         child: Column(
                           children: [
                             Icon(Icons.assignment_late_outlined, size: 64, color: Colors.grey.shade400),
                             const SizedBox(height: 16),
-                            const Text(
-                              'Nenhum registro encontrado.',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
+                            const Text('Nenhum despacho encontrado.', style: TextStyle(fontSize: 16, color: Colors.grey)),
                           ],
-                        )
-                      )
+                        ),
+                      ),
                     )
                   else
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: registros.length,
+                      itemCount: despachos.length,
                       itemBuilder: (context, index) {
-                        final registro = registros[index];
-                        final isAberto = registro.situacao == 'ABERTA';
-                        final isRetroativo = registro.retroativo;
-                        
+                        final despacho = despachos[index];
+                        final isAberto = despacho.isAberto;
+
                         return Card(
                           elevation: 1,
-                          color: isRetroativo ? Colors.orange.shade50 : null,
                           shape: RoundedRectangleBorder(
-                            side: BorderSide(
-                              color: isRetroativo ? Colors.orange.shade300 : Colors.grey.shade300, 
-                              width: isRetroativo ? 1.5 : 1
-                            ),
+                            side: BorderSide(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           margin: const EdgeInsets.symmetric(vertical: 6),
@@ -521,39 +320,17 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              'RO: ${registro.id}',
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                            ),
-                                            if (isRetroativo)
-                                              Container(
-                                                margin: const EdgeInsets.only(left: 8),
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.orange.shade100,
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  'RO RETROATIVO',
-                                                  style: TextStyle(
-                                                    color: Colors.orange.shade900,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
+                                        Text(
+                                          'Despacho: ${despacho.id}',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                         ),
-                                        if (registro.ordemServico != 0)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 4.0),
-                                            child: Text(
-                                              'OS: ${registro.ordemServico}', 
-                                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)
-                                            ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text(
+                                            'OS: ${despacho.ordemServicoId}',
+                                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                                           ),
+                                        ),
                                       ],
                                     ),
                                     Container(
@@ -561,52 +338,43 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                       decoration: BoxDecoration(
                                         color: isAberto ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: isAberto ? Colors.green : Colors.grey)
+                                        border: Border.all(color: isAberto ? Colors.green : Colors.grey),
                                       ),
                                       child: Text(
-                                        registro.situacao, 
-                                        style: TextStyle(color: isAberto ? Colors.green : Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)
+                                        despacho.status.label,
+                                        style: TextStyle(
+                                          color: isAberto ? Colors.green : Colors.grey,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    )
+                                    ),
                                   ],
                                 ),
-                                
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Divider(),
-                                ),
-                                
+
+                                const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: Divider()),
+
                                 Row(children: [
                                   const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                                   const SizedBox(width: 6),
-                                  Text(registro.dataCriacaoFormatada, style: const TextStyle(color: Colors.black87)),
+                                  Text(_formatData(despacho.dataInicio), style: const TextStyle(color: Colors.black87)),
                                 ]),
-                                if (isRetroativo && registro.dataFinalRoFormatada != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Row(children: [
-                                      const Icon(Icons.event_available, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Data Final: ${registro.dataFinalRoFormatada}', 
-                                        style: const TextStyle(color: Colors.black87),
-                                      ),
-                                    ]),
-                                  ),
-                                const SizedBox(height: 8),                                Row(children: [
-                                  _getCategoriaIcon(registro.categoriaDescricao),
+
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  _getCategoriaIcon(despacho),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      registro.categoriaDescricao, 
+                                      despacho.categoriaDescricao,
                                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ]),
-                                
+
                                 const SizedBox(height: 16),
-                                
+
                                 Row(
                                   children: [
                                     Expanded(
@@ -619,17 +387,10 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                         ),
                                         onPressed: () {
-                                          Widget pageDestino;
-
-                                          if (registro.categoria == 'CONSCIENTIZACAO_EDUCACAO_AMBIENTAL') {
-                                            pageDestino = DetalhesConscientizacaoPage(registro: registro);
-                                          } else if (registro.categoria == 'FORMACAO_BRIGADISTA_FLORESTAL') {
-                                            pageDestino = DetalhesFormacaoPage(registro: registro);
-                                          } else {
-                                            pageDestino = DetalhesRegistroPage(registro: registro);
-                                          }
-
-                                          Navigator.push(context, MaterialPageRoute(builder: (context) => pageDestino));
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(builder: (context) => DetalhesRegistroPage(despacho: despacho)),
+                                          );
                                         },
                                       ),
                                     ),
@@ -644,13 +405,11 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                           elevation: 0,
                                         ),
-                                        onPressed: isAberto 
-                                          ? () => _navegarParaFormularioResposta(registro) 
-                                          : null,
+                                        onPressed: isAberto ? () => _navegarParaFormularioResposta(despacho) : null,
                                       ),
                                     ),
                                   ],
-                                )
+                                ),
                               ],
                             ),
                           ),
@@ -659,8 +418,7 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                     ),
 
                   const SizedBox(height: 12),
-                  
-                  // --- PAGINAÇÃO (NOVO ESTILO) ---
+
                   if (totalPages > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -674,24 +432,16 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  backgroundColor: currentPage == i
-                                      ? TacticalTheme.primary
-                                      : null,
-                                  side: BorderSide(
-                                      color: currentPage == i
-                                          ? TacticalTheme.primary
-                                          : Colors.grey),
+                                  backgroundColor: currentPage == i ? TacticalTheme.primary : null,
+                                  side: BorderSide(color: currentPage == i ? TacticalTheme.primary : Colors.grey),
                                 ),
                                 onPressed: () => _onPageChanged(i),
                                 child: Text(
                                   '${i + 1}',
                                   style: TextStyle(
-                                      color: currentPage == i
-                                          ? Colors.white
-                                          : Colors.black87,
-                                      fontWeight: currentPage == i
-                                          ? FontWeight.bold
-                                          : FontWeight.normal),
+                                    color: currentPage == i ? Colors.white : Colors.black87,
+                                    fontWeight: currentPage == i ? FontWeight.bold : FontWeight.normal,
+                                  ),
                                 ),
                               ),
                             ),

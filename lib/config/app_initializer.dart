@@ -79,11 +79,9 @@ class AppInitializer {
         _log('🔄 Atualizando DB de v$dbVersion → v${AppConstants.currentDbVersion}');
         
         if (dbVersion < 10) {
-          await LocalDbService.resetarBancoDados();
+          await LocalDbService.instance.resetarBancoDados();
         }
         await prefs.setInt(AppConstants.dbVersionKey, AppConstants.currentDbVersion);
-      } else {
-        await LocalDbService.database;
       }
       
       _log('✅ Banco de dados pronto');
@@ -163,7 +161,7 @@ class AppInitializer {
   /// Sincroniza respostas pendentes
   static Future<void> _syncPendingResponses() async {
     try {
-      final pendentes = await LocalDbService.getRespostasPendentes();
+      final pendentes = await LocalDbService.instance.getRespostasPendentes();
       
       if (pendentes.isEmpty) {
         _log('ℹ️ Nenhuma resposta pendente');

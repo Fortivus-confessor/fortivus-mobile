@@ -127,6 +127,7 @@ class LocalDbService {
       _db.updateDespachoStatus(id, status);
 
   Future<void> markDespachoSynced(int id) => _db.markDespachoSynced(id);
+  Future<void> markDespachoUnsynced(int id) => _db.markDespachoUnsynced(id);
 
   Future<void> deleteDespacho(int id) => _db.deleteDespacho(id);
 
@@ -135,10 +136,10 @@ class LocalDbService {
 
   // ─── RESPOSTAS PENDENTES ─────────────────────────────────────────────────
 
-  Future<List<RespostaPendente>> getRespostasPendentes() =>
+  Future<List<RespostasPendente>> getRespostasPendentes() =>
       _db.getAllRespostasPendentes();
 
-  Future<List<RespostaPendente>> getRespostasPendentesByStatus(String status) =>
+  Future<List<RespostasPendente>> getRespostasPendentesByStatus(String status) =>
       _db.getRespostasPendentesByStatus(status);
 
   Future<int> saveRespostaPendente({
@@ -154,8 +155,8 @@ class LocalDbService {
         status: const Value('PENDENTE'),
       ));
 
-  Future<void> updateRespostaStatus(int id, String status, {String? erro}) =>
-      _db.updateRespostaStatus(id, status, erro: erro);
+  Future<void> updateRespostaStatus(int id, String status) =>
+      _db.updateRespostaStatus(id, status);
 
   Future<void> deleteRespostaPendente(int id) =>
       _db.deleteRespostaPendente(id);
@@ -164,6 +165,8 @@ class LocalDbService {
 
   Future<List<Evidencia>> getEvidenciasByDespacho(int despachoId) =>
       _db.getEvidenciasByDespacho(despachoId);
+
+  Future<List<Evidencia>> getPendingEvidencias() => _db.getPendingEvidencias();
 
   Future<int> saveEvidencia({
     required int despachoId,
@@ -210,7 +213,7 @@ class LocalDbService {
 
   // ─── HELPERS DE DESPACHO ─────────────────────────────────────────────────
 
-  Future<RespostaPendente?> getRespostaPendenteByDespacho(int despachoId) async {
+  Future<RespostasPendente?> getRespostaPendenteByDespacho(int despachoId) async {
     final list = await _db.getRespostasPendentesByStatus('PENDENTE');
     try {
       return list.firstWhere((r) => r.despachoId == despachoId);
@@ -222,6 +225,31 @@ class LocalDbService {
         return null;
       }
     }
+  }
+
+  // PIN offline é armazenado no SecureStorage (não no Drift) — o OIDC/PKCE nunca expõe
+  // a senha ao app. O PIN é definido pelo usuário explicitamente após o primeiro login online.
+  Future<User?> authenticateUserOffline(String identifier, String password) async {
+    final allUsers = await _db.select(_db.users).get();
+    try {
+      return allUsers.firstWhere(
+        (u) => u.email == identifier || u.matricula == identifier,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> limparTodasAsPastasDeArquivos() async {
+    await _db.delete(_db.evidencias).go();
+  }
+
+  Future<void> resetarBancoDados() async {
+    await _db.delete(_db.respostasPendentes).go();
+    await _db.delete(_db.despachos).go();
+    await _db.delete(_db.evidencias).go();
+    await _db.delete(_db.outboxTable).go();
+    await _db.delete(_db.users).go();
   }
 
   Future<void> removerRespostaPendenteByDespacho(int despachoId) async {

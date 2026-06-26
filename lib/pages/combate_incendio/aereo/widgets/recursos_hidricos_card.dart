@@ -51,7 +51,6 @@ class RecursosHidricosCard extends StatelessWidget {
                 selectedValues: state.origensAgua,
                 onChanged: state.setOrigensAgua,
                 required: true,
-                exclusiveValue: OrigemAgua.NENHUM,
               ),
             ],
           ),

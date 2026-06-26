@@ -1,23 +1,15 @@
 import 'dart:async';
 import 'package:fortivus_app/config/environment_config.dart';
-import 'package:fortivus_app/model/mobile_registro_avulso_request.dart';
-import 'package:fortivus_app/pages/combate_incendio/aereo/responder_combate_incendio_aereo_page.dart';
-import 'package:fortivus_app/pages/combate_incendio/maquinario/responder_combate_incendio_maquinario_page.dart';
-import 'package:fortivus_app/pages/formacao_brigadista_florestal/responder_formacao_brigadista_florestal_page.dart';
-import 'package:fortivus_app/pages/conscientizacao_educacao_ambiental/responder_conscientizacao_page.dart';
-import 'package:fortivus_app/pages/ronda/responder_ronda_page.dart';
 import 'package:fortivus_app/services/fcm_service.dart';
 import 'package:fortivus_app/util/ambiente_util.dart';
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/pages/consulta_registros_page.dart';
 import 'package:fortivus_app/pages/consulta_registros_encerrados_page.dart';
-import 'package:fortivus_app/pages/combate_incendio/terrestre/responder_combate_terrestre_page.dart';
 import 'package:fortivus_app/services/registro_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class HomePage extends StatefulWidget {
@@ -373,179 +365,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _abrirSelecaoCategoriaAvulsa() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, 
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
-            top: 16.0,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16.0,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min, 
-            children: [
-              Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(height: 16),
-              const Text('Novo Registro Avulso', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildCategoriaItem(Icons.landscape, 'Combate Terrestre', Colors.brown, 'COMBATE_INCENDIO_TERRESTRE'),
-                      const SizedBox(height: 12),
-                      _buildCategoriaItem(Icons.airplanemode_active, 'Combate Aéreo', Colors.blue[800]!, 'COMBATE_INCENDIO_AEREO'),
-                      const SizedBox(height: 12),
-                      _buildCategoriaItem(Icons.agriculture, 'Combate Maquinário', Colors.orange[800]!, 'COMBATE_INCENDIO_MAQUINARIO'),
-                      const SizedBox(height: 12),
-                      _buildCategoriaItem(Icons.security, 'Ronda', Colors.teal, 'RONDA'),
-                      const SizedBox(height: 12),
-                      _buildCategoriaItem(Icons.eco, 'Conscientização Educação Ambiental', Colors.green, 'CONSCIENTIZACAO_EDUCACAO_AMBIENTAL'),
-                      const SizedBox(height: 12),
-                      _buildCategoriaItem(Icons.school, 'Formação Brigadista Florestal', Colors.purple, 'FORMACAO_BRIGADISTA_FLORESTAL'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCategoriaItem(IconData icon, String label, Color color, String categoriaEnum) {
-    return ListTile(
-      leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-      onTap: () {
-        Navigator.pop(context); 
-        _confirmarCriacaoAvulsa(label, categoriaEnum);
-      },
-    );
-  }
-
-  void _confirmarCriacaoAvulsa(String labelCategoria, String categoriaEnum) {
-    final TextEditingController descricaoController = TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Nova Ocorrência: $labelCategoria', style: const TextStyle(fontSize: 18)),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: descricaoController,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.sentences,
-                    maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'Descrição da Ocorrência *', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  final String desc = descricaoController.text.trim();
-                  Navigator.pop(context);
-                  _criarRegistroAvulso(categoriaEnum, desc);
-                }
-              },
-              child: const Text('INICIAR'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _criarRegistroAvulso(String categoriaEnum, String descricao) async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ative o GPS!')));
-      }
-      return;
-    }
-    
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (!mounted) return;
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (!mounted) return;
-      if (permission == LocationPermission.denied) {
-        return;
-      }
-    }
-    if (permission == LocationPermission.deniedForever) return;
-
-    if (!context.mounted) return;
-    showDialog(context: context, barrierDismissible: false, builder: (ctx) => const Center(child: CircularProgressIndicator()));
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      final dadosTemp = RegistroAvulsoTemp(
-        id: -(DateTime.now().millisecondsSinceEpoch), 
-        categoria: categoriaEnum,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        descricao: descricao,
-      );
-
-      if (mounted) {
-        Widget? page;
-        switch (categoriaEnum) {
-          case 'COMBATE_INCENDIO_TERRESTRE': page = ResponderCombateTerrestrePage(dadosIniciais: dadosTemp); break;
-          case 'COMBATE_INCENDIO_AEREO': page = ResponderCombateAereoPage(dadosIniciais: dadosTemp); break;
-          case 'COMBATE_INCENDIO_MAQUINARIO': page = ResponderCombateMaquinarioPage(dadosIniciais: dadosTemp); break;
-          case 'RONDA': page = ResponderRondaPage(dadosIniciais: dadosTemp); break;
-          case 'CONSCIENTIZACAO_EDUCACAO_AMBIENTAL': page = ResponderConscientizacaoPage(dadosIniciais: dadosTemp); break;
-          case 'FORMACAO_BRIGADISTA_FLORESTAL': page = ResponderFormacaoPage(dadosIniciais: dadosTemp); break;
-        }
-
-        if (page != null) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => page!)).then((_) {
-            if (mounted) _carregarContadores(forceRefresh: true);
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-        debugPrint('Erro: $e');
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final menuItems = [
@@ -586,18 +405,6 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: EnvironmentConfig.isHomologacao ? Colors.deepPurple.shade900 : Colors.black,
         centerTitle: true,
         toolbarHeight: 100,
-        leadingWidth: 80, 
-        leading: InkWell(
-          onTap: _abrirSelecaoCategoriaAvulsa,
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center, 
-            children: [
-              Icon(Icons.add_circle_outline, color: Colors.white, size: 28), 
-              SizedBox(height: 2), 
-              Text('Registro\nAvulso', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10, height: 1.1))
-            ]
-          ),
-        ),
         title: GestureDetector(
           onLongPress: () {
             if (_podeTrocarAmbiente) {

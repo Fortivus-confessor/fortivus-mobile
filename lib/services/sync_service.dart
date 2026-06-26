@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:fortivus_app/services/outbox_sync_service.dart';
 import 'package:fortivus_app/services/responder/responder_base_service.dart';
 import 'package:fortivus_app/services/responder/responder_terrestre_service.dart';
 import 'package:fortivus_app/services/responder/responder_maquinario_service.dart';
@@ -175,6 +176,7 @@ class _SyncOrchestrator {
         RegistroService().syncAllRegistros(forceSync: true);
       }
 
+      await OutboxSyncService.syncEvidencias();
       await LocalDbService.instance.limparConcluidosSincronizados();
       await _preferencesProvider.setLastSyncTime(DateTime.now());
 

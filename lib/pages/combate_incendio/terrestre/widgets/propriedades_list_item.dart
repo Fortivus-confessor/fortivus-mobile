@@ -15,30 +15,27 @@ class PropriedadeListItem extends StatelessWidget {
   });
 
   String _getResumo() {
-    final isApoio = propriedade.tipoInteracao == TipoInteracaoPropriedade.APOIO;
-    
+    final isApoio = propriedade.tipoRegistro == TipoRegistro.APOIO;
+
     if (isApoio) {
-      List<String> partes = [];
-      if (propriedade.quantidadeMaquinario != null) {
-        partes.add("${propriedade.quantidadeMaquinario} Máq.");
+      final tipo = propriedade.tipoApoio?.descricao ?? '';
+      final qtde = propriedade.quantidadeApoio;
+      final outro = propriedade.descricaoApoioOutro;
+      if (propriedade.tipoApoio == TipoApoio.OUTRO) {
+        return outro?.isNotEmpty == true ? outro! : 'Outro apoio';
       }
-      if (propriedade.quantidadeMaoObra != null) {
-        partes.add("${propriedade.quantidadeMaoObra} Pessoas");
-      }
-      if (propriedade.apoioOutro?.isNotEmpty ?? false) {
-        partes.add(propriedade.apoioOutro!);
-      }
-      return partes.isEmpty ? "Sem detalhes" : partes.join(" / ");
+      if (qtde != null) return '$tipo: $qtde';
+      return tipo.isNotEmpty ? tipo : 'Sem detalhes';
     } else {
-      return (propriedade.motivoRecusa == TipoMotivoRecusa.OUTRO)
-          ? (propriedade.motivoOutro ?? "Outro motivo")
-          : (propriedade.motivoRecusa?.descricao ?? "Motivo não informado");
+      return (propriedade.motivoRecusa == MotivoRecusa.OUTRO)
+          ? (propriedade.descricaoRecusaOutro ?? 'Outro motivo')
+          : (propriedade.motivoRecusa?.descricao ?? 'Motivo não informado');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isApoio = propriedade.tipoInteracao == TipoInteracaoPropriedade.APOIO;
+    final isApoio = propriedade.tipoRegistro == TipoRegistro.APOIO;
     final resumo = _getResumo();
 
     return Card(
@@ -89,9 +86,9 @@ class PropriedadeListItem extends StatelessWidget {
               ],
             ),
             const Divider(height: 16),
-            _buildInfoRow(Icons.person, "Proprietário", propriedade.nomeProprietario),
+            _buildInfoRow(Icons.person, "Responsável", propriedade.responsavel),
             const SizedBox(height: 4),
-            _buildInfoRow(Icons.phone, "Contato", propriedade.contato),
+            _buildInfoRow(Icons.phone, "Contato", propriedade.telefone),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,

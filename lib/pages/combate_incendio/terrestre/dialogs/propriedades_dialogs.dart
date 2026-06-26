@@ -29,14 +29,14 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
   late final TextEditingController _foneCtrl;
   late final TextEditingController _latCtrl;
   late final TextEditingController _longCtrl;
-  late final TextEditingController _maqCtrl;
-  late final TextEditingController _maoCtrl;
+  late final TextEditingController _qtdeCtrl;
   late final TextEditingController _apoioOutroCtrl;
   late final TextEditingController _motivoOutroCtrl;
   late final MaskTextInputFormatter _maskFone;
 
-  TipoInteracaoPropriedade? _tipoInteracao;
-  TipoMotivoRecusa? _motivoRecusa;
+  TipoRegistro? _tipoInteracao;
+  TipoApoio? _tipoApoio;
+  MotivoRecusa? _motivoRecusa;
 
   @override
   void initState() {
@@ -44,21 +44,21 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
     final existente = widget.existente;
 
     _nomeCtrl = TextEditingController(text: existente?.nomePropriedade);
-    _respCtrl = TextEditingController(text: existente?.nomeProprietario);
-    _foneCtrl = TextEditingController(text: existente?.contato);
+    _respCtrl = TextEditingController(text: existente?.responsavel);
+    _foneCtrl = TextEditingController(text: existente?.telefone);
     _latCtrl = TextEditingController(text: existente?.latitude?.toString());
     _longCtrl = TextEditingController(text: existente?.longitude?.toString());
-    _maqCtrl = TextEditingController(text: existente?.quantidadeMaquinario?.toString());
-    _maoCtrl = TextEditingController(text: existente?.quantidadeMaoObra?.toString());
-    _apoioOutroCtrl = TextEditingController(text: existente?.apoioOutro);
-    _motivoOutroCtrl = TextEditingController(text: existente?.motivoOutro);
+    _qtdeCtrl = TextEditingController(text: existente?.quantidadeApoio?.toString());
+    _apoioOutroCtrl = TextEditingController(text: existente?.descricaoApoioOutro);
+    _motivoOutroCtrl = TextEditingController(text: existente?.descricaoRecusaOutro);
 
     _maskFone = MaskTextInputFormatter(
       mask: '(##) #####-####',
       filter: {"#": RegExp(r'[0-9]')},
     );
 
-    _tipoInteracao = existente?.tipoInteracao;
+    _tipoInteracao = existente?.tipoRegistro;
+    _tipoApoio = existente?.tipoApoio;
     _motivoRecusa = existente?.motivoRecusa;
   }
 
@@ -69,8 +69,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
     _foneCtrl.dispose();
     _latCtrl.dispose();
     _longCtrl.dispose();
-    _maqCtrl.dispose();
-    _maoCtrl.dispose();
+    _qtdeCtrl.dispose();
     _apoioOutroCtrl.dispose();
     _motivoOutroCtrl.dispose();
     super.dispose();
@@ -84,14 +83,14 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
       return;
     }
 
-    if (_tipoInteracao == TipoInteracaoPropriedade.RECUSA) {
+    if (_tipoInteracao == TipoRegistro.RECUSA) {
       if (_motivoRecusa == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Selecione o motivo da recusa')),
         );
         return;
       }
-      if (_motivoRecusa == TipoMotivoRecusa.OUTRO && _motivoOutroCtrl.text.trim().isEmpty) {
+      if (_motivoRecusa == MotivoRecusa.OUTRO && _motivoOutroCtrl.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Descreva o motivo "Outro"')),
         );
@@ -102,25 +101,24 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
     final nova = PropriedadeApoio(
       id: widget.existente?.id,
       nomePropriedade: _nomeCtrl.text.trim(),
-      nomeProprietario: _respCtrl.text.trim().isEmpty ? null : _respCtrl.text.trim(),
-      contato: _foneCtrl.text.trim().isEmpty ? null : _foneCtrl.text.trim(),
+      responsavel: _respCtrl.text.trim().isEmpty ? null : _respCtrl.text.trim(),
+      telefone: _foneCtrl.text.trim().isEmpty ? null : _foneCtrl.text.trim(),
       latitude: double.tryParse(_latCtrl.text),
       longitude: double.tryParse(_longCtrl.text),
-      tipoInteracao: _tipoInteracao,
-      quantidadeMaquinario: _tipoInteracao == TipoInteracaoPropriedade.APOIO
-          ? int.tryParse(_maqCtrl.text)
+      tipoRegistro: _tipoInteracao!,
+      tipoApoio: _tipoInteracao == TipoRegistro.APOIO ? _tipoApoio : null,
+      quantidadeApoio: _tipoInteracao == TipoRegistro.APOIO &&
+              _tipoApoio != TipoApoio.OUTRO
+          ? int.tryParse(_qtdeCtrl.text.trim())
           : null,
-      quantidadeMaoObra: _tipoInteracao == TipoInteracaoPropriedade.APOIO
-          ? int.tryParse(_maoCtrl.text)
-          : null,
-      apoioOutro: _tipoInteracao == TipoInteracaoPropriedade.APOIO && _apoioOutroCtrl.text.trim().isNotEmpty
+      descricaoApoioOutro: _tipoInteracao == TipoRegistro.APOIO &&
+              _tipoApoio == TipoApoio.OUTRO &&
+              _apoioOutroCtrl.text.trim().isNotEmpty
           ? _apoioOutroCtrl.text.trim()
           : null,
-      motivoRecusa: _tipoInteracao == TipoInteracaoPropriedade.RECUSA
-          ? _motivoRecusa
-          : null,
-      motivoOutro: (_tipoInteracao == TipoInteracaoPropriedade.RECUSA &&
-              _motivoRecusa == TipoMotivoRecusa.OUTRO &&
+      motivoRecusa: _tipoInteracao == TipoRegistro.RECUSA ? _motivoRecusa : null,
+      descricaoRecusaOutro: (_tipoInteracao == TipoRegistro.RECUSA &&
+              _motivoRecusa == MotivoRecusa.OUTRO &&
               _motivoOutroCtrl.text.trim().isNotEmpty)
           ? _motivoOutroCtrl.text.trim()
           : null,
@@ -151,7 +149,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // HEADER FIXO
+            // HEADER
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -262,7 +260,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                     const SizedBox(height: 12),
 
                     // Tipo de Interação
-                    DropdownButtonFormField<TipoInteracaoPropriedade>(
+                    DropdownButtonFormField<TipoRegistro>(
                       value: _tipoInteracao,
                       isExpanded: true,
                       itemHeight: null,
@@ -273,23 +271,23 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                       ),
-                      items: DropdownUtil.buildItems<TipoInteracaoPropriedade>(
-                        TipoInteracaoPropriedade.values,
+                      items: DropdownUtil.buildItems<TipoRegistro>(
+                        TipoRegistro.values,
                         (e) => e.descricao,
                       ),
-                      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoInteracaoPropriedade>(
-                        TipoInteracaoPropriedade.values,
+                      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoRegistro>(
+                        TipoRegistro.values,
                         (e) => e.descricao,
                       ),
                       onChanged: (v) {
                         setState(() {
                           _tipoInteracao = v;
-                          if (v == TipoInteracaoPropriedade.APOIO) {
+                          if (v == TipoRegistro.APOIO) {
                             _motivoRecusa = null;
                             _motivoOutroCtrl.clear();
                           } else {
-                            _maqCtrl.clear();
-                            _maoCtrl.clear();
+                            _tipoApoio = null;
+                            _qtdeCtrl.clear();
                             _apoioOutroCtrl.clear();
                           }
                         });
@@ -297,7 +295,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                     ),
 
                     // Seção Apoio
-                    if (_tipoInteracao == TipoInteracaoPropriedade.APOIO) ...[
+                    if (_tipoInteracao == TipoRegistro.APOIO) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(10),
@@ -318,52 +316,72 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _maqCtrl,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Maquinário',
-                                      border: OutlineInputBorder(),
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _maoCtrl,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Mão de Obra',
-                                      border: OutlineInputBorder(),
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _apoioOutroCtrl,
+                            DropdownButtonFormField<TipoApoio>(
+                              value: _tipoApoio,
+                              isExpanded: true,
+                              itemHeight: null,
                               decoration: const InputDecoration(
-                                labelText: 'Outro apoio',
+                                labelText: 'Tipo de Apoio',
                                 border: OutlineInputBorder(),
+                                fillColor: Colors.white,
+                                filled: true,
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                               ),
+                              items: DropdownUtil.buildItems<TipoApoio>(
+                                TipoApoio.values,
+                                (e) => e.descricao,
+                              ),
+                              selectedItemBuilder: (context) =>
+                                  DropdownUtil.buildSelectedItems<TipoApoio>(
+                                TipoApoio.values,
+                                (e) => e.descricao,
+                              ),
+                              onChanged: (v) {
+                                setState(() {
+                                  _tipoApoio = v;
+                                  _qtdeCtrl.clear();
+                                  _apoioOutroCtrl.clear();
+                                });
+                              },
                             ),
+                            if (_tipoApoio == TipoApoio.MAQUINARIO ||
+                                _tipoApoio == TipoApoio.MAO_DE_OBRA) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _qtdeCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Quantidade (${_tipoApoio == TipoApoio.MAQUINARIO ? "Máquinas" : "Pessoas"})',
+                                  border: const OutlineInputBorder(),
+                                  fillColor: Colors.white,
+                                  filled: true,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                                ),
+                                keyboardType: TextInputType.number,
+                              ),
+                            ],
+                            if (_tipoApoio == TipoApoio.OUTRO) ...[
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _apoioOutroCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Descrição do outro apoio',
+                                  border: OutlineInputBorder(),
+                                  fillColor: Colors.white,
+                                  filled: true,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     ],
 
                     // Seção Recusa
-                    if (_tipoInteracao == TipoInteracaoPropriedade.RECUSA) ...[
+                    if (_tipoInteracao == TipoRegistro.RECUSA) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(10),
@@ -384,7 +402,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<TipoMotivoRecusa>(
+                            DropdownButtonFormField<MotivoRecusa>(
                               value: _motivoRecusa,
                               isExpanded: true,
                               itemHeight: null,
@@ -396,24 +414,24 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                               ),
-                              items: DropdownUtil.buildItems<TipoMotivoRecusa>(
-                                TipoMotivoRecusa.values,
+                              items: DropdownUtil.buildItems<MotivoRecusa>(
+                                MotivoRecusa.values,
                                 (e) => e.descricao,
                               ),
-                              selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoMotivoRecusa>(
-                                TipoMotivoRecusa.values,
+                              selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<MotivoRecusa>(
+                                MotivoRecusa.values,
                                 (e) => e.descricao,
                               ),
                               onChanged: (v) {
                                 setState(() {
                                   _motivoRecusa = v;
-                                  if (v != TipoMotivoRecusa.OUTRO) {
+                                  if (v != MotivoRecusa.OUTRO) {
                                     _motivoOutroCtrl.clear();
                                   }
                                 });
                               },
                             ),
-                            if (_motivoRecusa == TipoMotivoRecusa.OUTRO) ...[
+                            if (_motivoRecusa == MotivoRecusa.OUTRO) ...[
                               const SizedBox(height: 8),
                               TextField(
                                 controller: _motivoOutroCtrl,
@@ -437,7 +455,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
               ),
             ),
 
-            // ACTIONS FIXO
+            // ACTIONS
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(12),

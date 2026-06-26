@@ -10,7 +10,6 @@ class AvaliacaoOperacionalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return Consumer<CombateAereoState>(
       builder: (context, state, _) {
         return TacticalTheme.buildCard(
@@ -19,7 +18,7 @@ class AvaliacaoOperacionalCard extends StatelessWidget {
           iconColor: TacticalTheme.accentBlue,
           child: Column(
             children: [
-              DropdownButtonFormField<TipoEfetividadeCombate>(
+              DropdownButtonFormField<EfetividadeCombate>(
                 value: state.efetividade,
                 isExpanded: true,
                 itemHeight: null,
@@ -28,12 +27,13 @@ class AvaliacaoOperacionalCard extends StatelessWidget {
                   Icons.trending_up,
                   helperText: 'Avalie a eficácia da operação',
                 ),
-                items: DropdownUtil.buildItems<TipoEfetividadeCombate>(
-                  TipoEfetividadeCombate.values,
+                items: DropdownUtil.buildItems<EfetividadeCombate>(
+                  EfetividadeCombate.values,
                   (e) => e.descricao,
                 ),
-                selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoEfetividadeCombate>(
-                  TipoEfetividadeCombate.values,
+                selectedItemBuilder: (context) =>
+                    DropdownUtil.buildSelectedItems<EfetividadeCombate>(
+                  EfetividadeCombate.values,
                   (e) => e.descricao,
                 ),
                 onChanged: state.setEfetividade,
@@ -42,38 +42,12 @@ class AvaliacaoOperacionalCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Necessidade de reforço
-              DropdownButtonFormField<Reforco>(
-                value: state.reforco,
-                isExpanded: true,
-                itemHeight: null,
-                decoration: TacticalTheme.buildInputDecoration(
-                  'Necessidade de Reforço *',
-                  Icons.add_moderator,
-                  helperText: 'Recursos adicionais necessários',
-                ),
-                items: DropdownUtil.buildItems<Reforco>(
-                  Reforco.values,
-                  (e) {
-                    try {
-                      return (e as dynamic).descricao;
-                    } catch (_) {
-                      return e.name;
-                    }
-                  },
-                ),
-                selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<Reforco>(
-                  Reforco.values,
-                  (e) {
-                    try {
-                      return (e as dynamic).descricao;
-                    } catch (_) {
-                      return e.name;
-                    }
-                  },
-                ),
-                onChanged: state.setReforco,
-                validator: (v) => v == null ? 'Campo obrigatório' : null,
+              SwitchListTile(
+                title: const Text('Necessidade de Reforço?'),
+                subtitle: const Text('Recursos adicionais necessários'),
+                value: state.necessidadeReforco,
+                onChanged: state.setNecessidadeReforco,
+                contentPadding: EdgeInsets.zero,
               ),
             ],
           ),

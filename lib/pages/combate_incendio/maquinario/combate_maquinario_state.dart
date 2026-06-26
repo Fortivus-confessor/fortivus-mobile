@@ -6,140 +6,73 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:fortivus_app/enums/enums.dart';
-import 'package:fortivus_app/enums/tipo_emprego.dart';
-import 'package:fortivus_app/enums/tipo_resultado_incendio.dart';
-import 'package:fortivus_app/model/combate_incendio_maquinario.dart';
-import 'package:fortivus_app/model/mobile_registro_avulso_request.dart';
+import 'package:fortivus_app/model/relatorio_maquinario.dart';
 import 'package:fortivus_app/services/responder/responder_maquinario_service.dart';
-import 'package:fortivus_app/services/auth_service.dart';
-import 'package:fortivus_app/services/local_db_service.dart';
+import 'package:fortivus_app/services/attachment_upload_service.dart';
 
 class CombateMaquinarioState extends ChangeNotifier {
-  // ============================================================================
-  // CONSTANTES
-  // ============================================================================
-  static const String categoria = 'COMBATE_INCENDIO_MAQUINARIO';
+  static const String categoria = 'MAQUINARIO';
 
-  // ============================================================================
-  // DEPENDÊNCIAS
-  // ============================================================================
   final ResponderMaquinarioService _service = ResponderMaquinarioService();
   final ImagePicker _picker = ImagePicker();
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
 
-  // ============================================================================
-  // IDENTIFICAÇÃO
-  // ============================================================================
   final int? registroId;
-  final RegistroAvulsoTemp? dadosIniciais;
-  
   int? _idRegistroAtual;
   int? get idRegistroAtual => _idRegistroAtual;
-  
-  late final bool _isAvulso;
-  bool get isAvulso => _isAvulso;
 
-  // ============================================================================
-  // FORM STATE
-  // ============================================================================
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-  // ============================================================================
-  // CONTROLLERS
-  // ============================================================================
-  final TextEditingController horimetroInicialController =
-      TextEditingController();
-  final TextEditingController horimetroFinalController =
-      TextEditingController();
-  final TextEditingController comprimentoAceiroController =
-      TextEditingController();
-  final TextEditingController descricaoOperacaoController =
-      TextEditingController();
-  final TextEditingController resultadoDiaController =
-      TextEditingController();
+  final TextEditingController horimetroInicialController = TextEditingController();
+  final TextEditingController horimetroFinalController = TextEditingController();
+  final TextEditingController comprimentoAceiroController = TextEditingController();
+  final TextEditingController descricaoOperacaoController = TextEditingController();
+  final TextEditingController resultadoDiaController = TextEditingController();
 
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
   bool _isLoading = true;
   bool get isLoading => _isLoading;
-  
+
   void _setLoading(bool value) {
     if (_isDisposed) return;
     _isLoading = value;
     notifyListeners();
   }
 
-  // ============================================================================
-  // NOTIFIERS
-  // ============================================================================
   final ValueNotifier<bool> isOfflineNotifier = ValueNotifier(false);
   final ValueNotifier<LatLng?> localizacaoNotifier = ValueNotifier(null);
   final ValueNotifier<List<XFile>> arquivosNotifier = ValueNotifier([]);
 
-  // ============================================================================
-  // DADOS DO FORMULÁRIO
-  // ============================================================================
   String? eventoFogoGeoJson;
   DateTime? horaInicioOperacao;
   DateTime? horaFinalOperacao;
   DateTime? horarioChegada;
-  
-  TipoEmprego? tipoEmprego;
-  TipoEfetividadeCombate? efetividade;
-  Reforco? reforco;
-  TipoResultadoIncendio? tipoResultado;
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-  ImagePicker get picker => _picker;
-  bool get isOffline => isOfflineNotifier.value;
-  
-  /// Calcula tempo líquido de operação
-  String get tempoLiquido {
-    if (horaInicioOperacao == null || horaFinalOperacao == null) {
-      return '--:--';
-    }
-    final duracao = horaFinalOperacao!.difference(horaInicioOperacao!);
-    if (duracao.isNegative) return 'Inválido';
-    final horas = duracao.inHours;
-    final minutos = duracao.inMinutes.remainder(60);
-    return '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}';
-  }
+  TipoEmpregoMaquinario? tipoEmprego;
+  EfetividadeCombate? efetividade;
+  bool necessidadeReforco = false;
+  ResultadoOcorrencia? resultadoOcorrencia;
 
-  // ============================================================================
-  // FLAGS DE CONTROLE
-  // ============================================================================
   bool _isDisposed = false;
   bool _salvando = false;
 
-  // ============================================================================
-  // CONSTRUTOR
-  // ============================================================================
-  CombateMaquinarioState({
-    required this.registroId,
-    required this.dadosIniciais,
-    bool isAvulso = false,
-  }) {
-    _isAvulso = isAvulso;
-    if (kDebugMode) {
-      debugPrint('🏗️ [MAQUINÁRIO STATE] Construtor chamado');
-      debugPrint('   - isAvulso: $_isAvulso');
-      debugPrint('   - registroId: $registroId');
-    }
+  ImagePicker get picker => _picker;
+  bool get isOffline => isOfflineNotifier.value;
+
+  String get tempoLiquido {
+    if (horaInicioOperacao == null || horaFinalOperacao == null) return '--:--';
+    final duracao = horaFinalOperacao!.difference(horaInicioOperacao!);
+    if (duracao.isNegative) return 'Inválido';
+    final h = duracao.inHours;
+    final m = duracao.inMinutes.remainder(60);
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  CombateMaquinarioState({required this.registroId}) {
+    if (kDebugMode) debugPrint('🏗️ [MAQUINÁRIO STATE] Construtor: registroId=$registroId');
     _init();
   }
 
-  // ============================================================================
-  // INICIALIZAÇÃO
-  // ============================================================================
   void _init() {
-    if (kDebugMode) {
-      debugPrint('🚀 [STATE MAQUINÁRIO] _init() chamado');
-      debugPrint('   - isAvulso: $_isAvulso');
-    }
-    
     _idRegistroAtual = registroId;
     _setupConnectivityListener();
     _checkInitialConnectivity();
@@ -147,9 +80,8 @@ class CombateMaquinarioState extends ChangeNotifier {
   }
 
   void _setupConnectivityListener() {
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen(_updateConnectionStatus);
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
   Future<void> _checkInitialConnectivity() async {
@@ -165,99 +97,72 @@ class CombateMaquinarioState extends ChangeNotifier {
   Future<void> _loadFormData() async {
     if (_idRegistroAtual != null) {
       await _carregarDadosExistentes();
-    } else if (dadosIniciais != null) {
-      _iniciarComDadosTemporarios();
     } else {
       _setLoading(false);
     }
   }
 
-  // ============================================================================
-  // CARREGAMENTO DE DADOS
-  // ============================================================================
-  void _iniciarComDadosTemporarios() {
-    if (kDebugMode) {
-      debugPrint('✅ [STATE] Inicializando AVULSO MAQUINÁRIO');
-      debugPrint('   - Descrição: ${dadosIniciais!.descricao}');
-      debugPrint('   - Localização: (${dadosIniciais!.latitude}, ${dadosIniciais!.longitude})');
-    }
-    _setLoading(false);
-    
-    localizacaoNotifier.value = LatLng(
-      dadosIniciais!.latitude,
-      dadosIniciais!.longitude,
-    );
-
-    if (kDebugMode) {
-      debugPrint('   ✅ Campos pré-preenchidos');
-    }
-  }
-
   Future<void> _carregarDadosExistentes() async {
     try {
-      final combate = await _service.getResposta<CombateIncendioMaquinario>(
-        registroId: _idRegistroAtual!,
-        fromJson: (json) => CombateIncendioMaquinario.fromJson(json),
-        emptyFactory: (id) => CombateIncendioMaquinario(id: id),
+      final relatorio = await _service.getResposta<RelatorioMaquinario>(
+        despachoId: _idRegistroAtual!,
+        fromJson: (json) => RelatorioMaquinario.fromJson(json),
+        emptyFactory: (id) => RelatorioMaquinario(despachoId: id),
       ).timeout(
         const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Tempo limite excedido ao carregar dados');
-        },
+        onTimeout: () => RelatorioMaquinario(despachoId: _idRegistroAtual!),
       );
-
-      _popularFormulario(combate);
+      _popularFormulario(relatorio);
     } catch (e) {
-      final combateVazio = CombateIncendioMaquinario(id: _idRegistroAtual!);
-      _popularFormulario(combateVazio);
+      _popularFormulario(RelatorioMaquinario(despachoId: _idRegistroAtual!));
     } finally {
-      if (!_isDisposed) {
-        _setLoading(false);
+      if (!_isDisposed) _setLoading(false);
+    }
+  }
+
+  void _popularFormulario(RelatorioMaquinario relatorio) {
+    horimetroInicialController.text = relatorio.horimetroInicial?.toString() ?? '';
+    horimetroFinalController.text = relatorio.horimetroFinal?.toString() ?? '';
+    comprimentoAceiroController.text = relatorio.comprimentoAceiros?.toString() ?? '';
+    descricaoOperacaoController.text = relatorio.historicoDescritivo ?? '';
+    resultadoDiaController.text = relatorio.outroResultadoDescricao ?? '';
+
+    if (relatorio.horaInicioOperacao != null) {
+      final parts = relatorio.horaInicioOperacao!.split(':');
+      if (parts.length >= 2) {
+        final now = DateTime.now();
+        horaInicioOperacao = DateTime(now.year, now.month, now.day,
+            int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
       }
     }
-  }
-
-  void _popularFormulario(CombateIncendioMaquinario combate) {
-    // Controllers
-    horimetroInicialController.text = combate.horimetroInicial ?? '';
-    horimetroFinalController.text = combate.horimetroFinal ?? '';
-    comprimentoAceiroController.text = combate.comprimentoAceiro?.toString() ?? '';
-    descricaoOperacaoController.text = combate.historicoDescritivo ?? '';
-    resultadoDiaController.text = combate.resultadoOcorrencia ?? '';
-
-    // DateTimes
-    horaInicioOperacao = combate.horaInicioOperacao;
-    horaFinalOperacao = combate.horaFinalOperacao;
-    horarioChegada = combate.horarioChegada;
-
-    // Enums
-    tipoEmprego = combate.tipoEmprego;
-    efetividade = combate.efetividadeCombate;
-    reforco = combate.reforco;
-    tipoResultado = combate.tipoResultado;
-
-    // Localização
-    if (combate.latitudeAreaAtuacao != null &&
-        combate.longitudeAreaAtuacao != null) {
-      localizacaoNotifier.value = LatLng(
-        combate.latitudeAreaAtuacao!,
-        combate.longitudeAreaAtuacao!,
-      );
+    if (relatorio.horaFimOperacao != null) {
+      final parts = relatorio.horaFimOperacao!.split(':');
+      if (parts.length >= 2) {
+        final now = DateTime.now();
+        horaFinalOperacao = DateTime(now.year, now.month, now.day,
+            int.tryParse(parts[0]) ?? 0, int.tryParse(parts[1]) ?? 0);
+      }
     }
 
-    // GeoJSON
-    eventoFogoGeoJson = combate.eventoFogoGeoJson;
+    horarioChegada = relatorio.dataInicio;
 
-    // Arquivos
-    if (combate.arquivosLocais.isNotEmpty) {
-      arquivosNotifier.value =
-          combate.arquivosLocais.map((path) => XFile(path)).toList();
+    if (relatorio.tiposEmprego.isNotEmpty) {
+      try {
+        tipoEmprego = TipoEmpregoMaquinario.values.firstWhere(
+          (e) => e.name == relatorio.tiposEmprego.first,
+        );
+      } catch (_) {}
+    }
+
+    efetividade = relatorio.efetividadeCombate;
+    necessidadeReforco = relatorio.necessidadeReforco;
+    resultadoOcorrencia = relatorio.resultadoOcorrencia;
+
+    if (relatorio.areaAtuacaoLat != null && relatorio.areaAtuacaoLng != null) {
+      localizacaoNotifier.value = LatLng(relatorio.areaAtuacaoLat!, relatorio.areaAtuacaoLng!);
     }
   }
 
-  // ============================================================================
-  // SETTERS (COM PROTEÇÃO)
-  // ============================================================================
   void setHoraInicioOperacao(DateTime? value) {
     if (_isDisposed) return;
     horaInicioOperacao = value;
@@ -276,27 +181,27 @@ class CombateMaquinarioState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setTipoEmprego(TipoEmprego? value) {
+  void setTipoEmprego(TipoEmpregoMaquinario? value) {
     if (_isDisposed) return;
     tipoEmprego = value;
     notifyListeners();
   }
 
-  void setEfetividade(TipoEfetividadeCombate? value) {
+  void setEfetividade(EfetividadeCombate? value) {
     if (_isDisposed) return;
     efetividade = value;
     notifyListeners();
   }
 
-  void setReforco(Reforco? value) {
+  void setNecessidadeReforco(bool value) {
     if (_isDisposed) return;
-    reforco = value;
+    necessidadeReforco = value;
     notifyListeners();
   }
 
-  void setTipoResultado(TipoResultadoIncendio? value) {
+  void setResultadoOcorrencia(ResultadoOcorrencia? value) {
     if (_isDisposed) return;
-    tipoResultado = value;
+    resultadoOcorrencia = value;
     notifyListeners();
   }
 
@@ -304,11 +209,6 @@ class CombateMaquinarioState extends ChangeNotifier {
     if (_isDisposed) return;
     localizacaoNotifier.value = latLng;
     notifyListeners();
-  }
-
-  void atualizarArquivos(List<XFile> novosArquivos) {
-    if (_isDisposed) return;
-    arquivosNotifier.value = novosArquivos;
   }
 
   void adicionarArquivos(List<XFile> novos) {
@@ -323,191 +223,99 @@ class CombateMaquinarioState extends ChangeNotifier {
     arquivosNotifier.value = lista;
   }
 
-  // ============================================================================
-  // VALIDAÇÃO
-  // ============================================================================
   bool validarFormulario() {
-    if (!formKey.currentState!.validate()) {
-      return false;
-    }
-
-    if (localizacaoNotifier.value == null) {
-      return false;
-    }
-
+    if (!formKey.currentState!.validate()) return false;
+    if (localizacaoNotifier.value == null) return false;
     return true;
   }
 
-  // ============================================================================
-  // SALVAMENTO - FLUXO OTIMIZADO (CLEAN CODE)
-  // ============================================================================
   Future<String?> salvar() async {
-    if (_salvando) {
-      return "Salvamento já em andamento.";
-    }
-
-    if (!validarFormulario()) {
-      return "Preencha os campos obrigatórios e a localização.";
-    }
-
+    if (_salvando) return 'Salvamento já em andamento.';
+    if (!validarFormulario()) return 'Preencha os campos obrigatórios e a localização.';
     _salvando = true;
     _setLoading(true);
-    
-    bool sucesso = false; // FLAG DE SUCESSO
-
+    bool sucesso = false;
     try {
-      if (kDebugMode) {
-        debugPrint('═════════════════════════════════════════════════════════');
-        debugPrint('📋 [SALVAR] Iniciando salvamento MAQUINÁRIO');
-        debugPrint('═════════════════════════════════════════════════════════');
-        debugPrint('   - isAvulso: $_isAvulso');
-        debugPrint('   - arquivos: ${arquivosNotifier.value.length}');
-      }
-
-      // 1. Garantir header offline (LOC)
-      await _garantirRegistroHeader();
-
-      if (kDebugMode) debugPrint('✅ [SALVAR] Header criado: $_idRegistroAtual');
-
-      // 2. Montar dados
-      final combate = _construirModeloCombate();
-      final anexosParaEnvio = List<XFile>.from(arquivosNotifier.value);
-
-      // 3. Salvar via service (Lida com o endpoint Multipart e IDs reais)
-      if (kDebugMode) {
-        debugPrint('📤 [SALVAR] Enviando via service: dados + ${anexosParaEnvio.length} anexo(s)');
-      }
-
-      await _service.salvarResposta(
-        resposta: combate,
-        arquivos: anexosParaEnvio.isNotEmpty ? anexosParaEnvio : null,
-        descricaoAvulsa: _isAvulso ? dadosIniciais?.descricao : null,
-        isAvulso: _isAvulso,
+      if (_idRegistroAtual == null) return 'Despacho não identificado.';
+      final relatorio = _construirRelatorio();
+      await _service.salvarResposta(resposta: relatorio);
+      await AttachmentUploadService.instance.salvarOuEnfileirar(
+        _idRegistroAtual!,
+        arquivosNotifier.value,
+        categoria,
       );
-
-      if (kDebugMode) debugPrint('✅ [SALVAR] Salvamento via service bem-sucedido');
-
-      sucesso = true; // MARCA SUCESSO ANTES DO RETURN
+      sucesso = true;
       return null;
-
-    } catch (e, stackTrace) {
+    } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('❌ [SALVAR] Erro: $e');
-        debugPrint(stackTrace.toString());
+        debugPrint('❌ [SALVAR MAQUINÁRIO] $e');
+        debugPrint(st.toString());
       }
-      return _tratarErroSalvamento(e);
-
+      return _tratarErro(e);
     } finally {
       if (!_isDisposed) {
         _salvando = false;
-        
-        // SÓ DESLIGA O LOADING SE DEU ERRO (Pois a tela não vai fechar)
-        if (!sucesso) {
-          _setLoading(false);
-        }
+        if (!sucesso) _setLoading(false);
       }
     }
   }
 
-  // ============================================================================
-  // GARANTIR HEADER
-  // ============================================================================
-  Future<void> _garantirRegistroHeader() async {
-    if (_idRegistroAtual != null) return;
-
-    if (dadosIniciais == null) {
-      throw Exception("Dados iniciais não fornecidos.");
+  RelatorioMaquinario _construirRelatorio() {
+    String? fmt(DateTime? dt) {
+      if (dt == null) return null;
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
 
-    final userSub = await AuthService().getUserSub();
-    if (userSub == null) {
-      throw Exception("Usuário não identificado.");
-    }
-
-    final novoRegistro = await LocalDbService.criarRegistroAvulsoOffline(
-      categoria: dadosIniciais!.categoria,
-      lat: dadosIniciais!.latitude,
-      long: dadosIniciais!.longitude,
-      userSub: userSub,
-      descricao: dadosIniciais!.descricao,
-    );
-
-    _idRegistroAtual = novoRegistro.id;
-
-    if (kDebugMode) {
-      debugPrint('✅ [GARANTIR HEADER] Registro criado: $_idRegistroAtual');
-    }
-  }
-
-  // ============================================================================
-  // CONSTRUIR MODELO
-  // ============================================================================
-  CombateIncendioMaquinario _construirModeloCombate() {
-    if (_idRegistroAtual == null) {
-      throw Exception("ID não definido.");
-    }
-
-    return CombateIncendioMaquinario(
-      id: _idRegistroAtual!,
-      horimetroInicial: horimetroInicialController.text.trim(),
-      horimetroFinal: horimetroFinalController.text.trim(),
-      horaInicioOperacao: horaInicioOperacao,
-      horaFinalOperacao: horaFinalOperacao,
-      horarioChegada: horarioChegada,
-      tipoEmprego: tipoEmprego,
-      comprimentoAceiro: double.tryParse(
-        comprimentoAceiroController.text.replaceAll(',', '.'),
+    return RelatorioMaquinario(
+      despachoId: _idRegistroAtual!,
+      horimetroInicial: double.tryParse(horimetroInicialController.text.trim()),
+      horimetroFinal: double.tryParse(horimetroFinalController.text.trim()),
+      horaInicioOperacao: fmt(horaInicioOperacao),
+      horaFimOperacao: fmt(horaFinalOperacao),
+      tempoLiquido: (horaInicioOperacao != null && horaFinalOperacao != null)
+          ? tempoLiquido
+          : null,
+      tiposEmprego: tipoEmprego != null ? [tipoEmprego!.name] : [],
+      comprimentoAceiros: double.tryParse(
+        comprimentoAceiroController.text.trim().replaceAll(',', '.'),
       ),
-      latitudeAreaAtuacao: localizacaoNotifier.value!.latitude,
-      longitudeAreaAtuacao: localizacaoNotifier.value!.longitude,
+      areaAtuacaoLat: localizacaoNotifier.value?.latitude,
+      areaAtuacaoLng: localizacaoNotifier.value?.longitude,
       efetividadeCombate: efetividade,
-      reforco: reforco,
+      necessidadeReforco: necessidadeReforco,
+      tiposReforcoNecessarios: const [],
       historicoDescritivo: descricaoOperacaoController.text.trim(),
-      tipoResultado: tipoResultado,
-      resultadoOcorrencia: tipoResultado == TipoResultadoIncendio.OUTRO
+      resultadoOcorrencia: resultadoOcorrencia,
+      outroResultadoDescricao: resultadoOcorrencia == ResultadoOcorrencia.OUTRO
           ? resultadoDiaController.text.trim()
           : null,
+      dataInicio: horarioChegada,
     );
   }
 
-  // ============================================================================
-  // TRATAR ERRO
-  // ============================================================================
-  String _tratarErroSalvamento(dynamic erro) {
-    final mensagem = erro.toString();
-
-    if (mensagem.contains('400') ||
-        mensagem.toLowerCase().contains('bad request')) {
+  String _tratarErro(dynamic erro) {
+    final msg = erro.toString();
+    if (msg.contains('400') || msg.toLowerCase().contains('bad request')) {
       return 'Verifique os campos preenchidos.';
     }
-
-    if (mensagem.toLowerCase().contains('network') ||
-        mensagem.contains('connection')) {
+    if (msg.toLowerCase().contains('network') || msg.contains('connection')) {
       return 'Erro de conexão. Tente novamente.';
     }
-
     return 'Erro inesperado: $erro';
   }
 
-  // ============================================================================
-  // DISPOSE
-  // ============================================================================
   @override
   void dispose() {
     _isDisposed = true;
-
     _connectivitySubscription.cancel();
-
     horimetroInicialController.dispose();
     horimetroFinalController.dispose();
     comprimentoAceiroController.dispose();
     descricaoOperacaoController.dispose();
     resultadoDiaController.dispose();
-
     isOfflineNotifier.dispose();
     localizacaoNotifier.dispose();
     arquivosNotifier.dispose();
-
     super.dispose();
   }
 }

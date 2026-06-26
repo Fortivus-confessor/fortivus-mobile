@@ -17,7 +17,6 @@ class InformacoesCombateCard extends StatefulWidget {
 
 class _InformacoesCombateCardState extends State<InformacoesCombateCard>
     with AutomaticKeepAliveClientMixin {
-  
   static final DateFormat _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   @override
@@ -64,7 +63,7 @@ class _InformacoesCombateCardState extends State<InformacoesCombateCard>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Consumer<CombateTerrestreState>(
       builder: (context, state, _) {
         return TacticalCard(
@@ -76,26 +75,26 @@ class _InformacoesCombateCardState extends State<InformacoesCombateCard>
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
-              ChipField<TipoAcaoCombate>(
+              ChipField<AcaoCombate>(
                 label: 'Ações de Combate',
-                options: TipoAcaoCombate.values,
+                options: AcaoCombate.values,
                 selectedValues: state.acoes,
                 onChanged: state.setAcoes,
                 required: true,
-                exclusiveValue: TipoAcaoCombate.NENHUM,
+                exclusiveValue: AcaoCombate.NENHUMA,
               ),
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
-              ChipField<TipoApoioOrgao>(
+              ChipField<OrgaoApoio>(
                 label: 'Órgãos de Apoio',
-                options: TipoApoioOrgao.values,
+                options: OrgaoApoio.values,
                 selectedValues: state.apoios,
                 onChanged: state.setApoios,
                 required: true,
-                exclusiveValue: TipoApoioOrgao.NENHUM,
+                exclusiveValue: OrgaoApoio.NENHUM,
               ),
-              if (state.apoios.contains(TipoApoioOrgao.OUTRO)) ...[
+              if (state.apoios.contains(OrgaoApoio.OUTROS)) ...[
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: state.apoioOutroController,
@@ -108,17 +107,6 @@ class _InformacoesCombateCardState extends State<InformacoesCombateCard>
                   validator: (v) => (v == null || v.isEmpty) ? 'Obrigatório' : null,
                 ),
               ],
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              ChipField<TipoMaterialUtilizado>(
-                label: 'Materiais Utilizados',
-                options: TipoMaterialUtilizado.values,
-                selectedValues: state.materiais,
-                onChanged: state.setMateriais,
-                required: true,
-                exclusiveValue: TipoMaterialUtilizado.NENHUM,
-              ),
             ],
           ),
         );

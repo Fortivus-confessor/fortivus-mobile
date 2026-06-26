@@ -32,6 +32,9 @@ class RegistroService {
   String get baseUrl =>
       '${EnvironmentConfig.apiBaseUrl}/v1/operacional/despachos';
 
+  String get mobileBaseUrl =>
+      '${EnvironmentConfig.apiBaseUrl}/v1/mobile/despachos';
+
   bool _isSyncInProgress = false;
   DateTime? _lastSyncTime;
   Timer? _syncDebounceTimer;
@@ -264,12 +267,12 @@ class RegistroService {
       'size': size.toString(),
       'sort': sort,
     };
+    if (situacao != null && situacao.isNotEmpty) params['situacao'] = situacao;
     if (cacheBuster != null) params['_t'] = cacheBuster;
 
-    final uri =
-        Uri.parse('$baseUrl/paged').replace(queryParameters: params);
-    final response =
-        await AuthHttpHelper.get(uri).timeout(_requestTimeout);
+    // Usa endpoint mobile exclusivo: filtra server-side por responsavelId + situacao
+    final uri = Uri.parse('$mobileBaseUrl/meus').replace(queryParameters: params);
+    final response = await AuthHttpHelper.get(uri).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw RegistroServiceException(
@@ -278,24 +281,7 @@ class RegistroService {
       );
     }
 
-    final fullPage = RegistroPage.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>);
-
-    if (situacao != null && situacao.isNotEmpty) {
-      final filtered = fullPage.content.where((d) {
-        if (situacao == 'ABERTA') return d.status.isAberta;
-        if (situacao == 'ENCERRADA') return d.status.isConcluido;
-        return d.status.name == situacao;
-      }).toList();
-      return RegistroPage(
-        content: filtered,
-        currentPage: fullPage.currentPage,
-        totalPages: fullPage.totalPages,
-        totalItems: filtered.length,
-      );
-    }
-
-    return fullPage;
+    return RegistroPage.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
   Future<int> getTotalPendentes({bool quickCheck = false}) async {

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
-import 'package:fortivus_app/enums/tipo_emprego.dart';
+import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/util/dropdown_util.dart';
 import '../combate_maquinario_state.dart';
 import '../dialogs/datetime_picker_dialog.dart';
@@ -71,9 +71,7 @@ class DadosOperacionaisCard extends StatelessWidget {
                         ? _timeFormat.format(state.horaInicioOperacao!)
                         : 'Definir',
                     style: TextStyle(
-                      color: state.horaInicioOperacao != null
-                          ? Colors.black87
-                          : Colors.grey,
+                      color: state.horaInicioOperacao != null ? Colors.black87 : Colors.grey,
                       fontSize: 14,
                     ),
                   ),
@@ -111,9 +109,7 @@ class DadosOperacionaisCard extends StatelessWidget {
                         ? _timeFormat.format(state.horaFinalOperacao!)
                         : 'Definir',
                     style: TextStyle(
-                      color: state.horaFinalOperacao != null
-                          ? Colors.black87
-                          : Colors.grey,
+                      color: state.horaFinalOperacao != null ? Colors.black87 : Colors.grey,
                       fontSize: 14,
                     ),
                   ),
@@ -141,11 +137,7 @@ class DadosOperacionaisCard extends StatelessWidget {
           const SizedBox(width: 10),
           const Text(
             'Tempo Líquido: ',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
           Text(
             state.tempoLiquido,
@@ -204,10 +196,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.horimetroInicialController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Horímetro Inicial',
-              Icons.timer,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Horímetro Inicial', Icons.timer),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
@@ -216,10 +205,7 @@ class DadosOperacionaisCard extends StatelessWidget {
         Expanded(
           child: TextFormField(
             controller: state.horimetroFinalController,
-            decoration: TacticalTheme.buildInputDecoration(
-              'Horímetro Final',
-              Icons.timer_off,
-            ),
+            decoration: TacticalTheme.buildInputDecoration('Horímetro Final', Icons.timer_off),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
@@ -229,20 +215,17 @@ class DadosOperacionaisCard extends StatelessWidget {
   }
 
   Widget _buildTipoEmprego(CombateMaquinarioState state) {
-    return DropdownButtonFormField<TipoEmprego>(
+    return DropdownButtonFormField<TipoEmpregoMaquinario>(
       value: state.tipoEmprego,
       isExpanded: true,
       itemHeight: null,
-      decoration: TacticalTheme.buildInputDecoration(
-        'Tipo de Emprego *',
-        Icons.category,
-      ),
-      items: DropdownUtil.buildItems<TipoEmprego>(
-        TipoEmprego.values,
+      decoration: TacticalTheme.buildInputDecoration('Tipo de Emprego *', Icons.category),
+      items: DropdownUtil.buildItems<TipoEmpregoMaquinario>(
+        TipoEmpregoMaquinario.values,
         (e) => e.descricao,
       ),
-      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoEmprego>(
-        TipoEmprego.values,
+      selectedItemBuilder: (context) => DropdownUtil.buildSelectedItems<TipoEmpregoMaquinario>(
+        TipoEmpregoMaquinario.values,
         (e) => e.descricao,
       ),
       onChanged: state.setTipoEmprego,

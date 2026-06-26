@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,129 +6,69 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:fortivus_app/enums/enums.dart';
-import 'package:fortivus_app/enums/tipo_emprego.dart';
-import 'package:fortivus_app/enums/tipo_resultado_incendio.dart';
-import 'package:fortivus_app/model/combate_incendio_aereo.dart';
-import 'package:fortivus_app/model/mobile_registro_avulso_request.dart';
-import 'package:fortivus_app/services/responder/responder_aereo_service.dart';  // ✅ MUDADO
-import 'package:fortivus_app/services/auth_service.dart';
+import 'package:fortivus_app/model/relatorio_aereo.dart';
+import 'package:fortivus_app/services/responder/responder_aereo_service.dart';
 import 'package:fortivus_app/services/local_db_service.dart';
+import 'package:fortivus_app/services/attachment_upload_service.dart';
 
 class CombateAereoState extends ChangeNotifier {
-  // ============================================================================
-  // CONSTANTES
-  // ============================================================================
-  static const String categoria = 'COMBATE_INCENDIO_AEREO';
+  static const String categoria = 'AEREO';
 
-  // ============================================================================
-  // DEPENDÊNCIAS
-  // ============================================================================
-  final ResponderAereoService _service = ResponderAereoService();  // ✅ MUDADO
+  final ResponderAereoService _service = ResponderAereoService();
   final ImagePicker _picker = ImagePicker();
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
 
-  // ============================================================================
-  // IDENTIFICAÇÃO
-  // ============================================================================
   final int? registroId;
-  final RegistroAvulsoTemp? dadosIniciais;
-  
   int? _idRegistroAtual;
   int? get idRegistroAtual => _idRegistroAtual;
-  
-  late final bool _isAvulso;
-  bool get isAvulso => _isAvulso;
 
-  // ============================================================================
-  // FORM STATE
-  // ============================================================================
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-  // ============================================================================
-  // CONTROLLERS
-  // ============================================================================
-  final TextEditingController horimetroInicialController =
-      TextEditingController();
-  final TextEditingController horimetroFinalController =
-      TextEditingController();
+  final TextEditingController horimetroInicialController = TextEditingController();
+  final TextEditingController horimetroFinalController = TextEditingController();
   final TextEditingController litrosAguaController = TextEditingController();
   final TextEditingController alijamentosController = TextEditingController();
-  final TextEditingController descricaoOperacaoController =
-      TextEditingController();
-  final TextEditingController resultadoDiaController =
-      TextEditingController();
+  final TextEditingController descricaoOperacaoController = TextEditingController();
+  final TextEditingController resultadoDiaController = TextEditingController();
 
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
   bool _isLoading = true;
   bool get isLoading => _isLoading;
-  
+
   void _setLoading(bool value) {
     if (_isDisposed) return;
     _isLoading = value;
     notifyListeners();
   }
 
-  // ============================================================================
-  // NOTIFIERS
-  // ============================================================================
   final ValueNotifier<bool> isOfflineNotifier = ValueNotifier(false);
   final ValueNotifier<LatLng?> localizacaoNotifier = ValueNotifier(null);
   final ValueNotifier<List<XFile>> arquivosNotifier = ValueNotifier([]);
 
-  // ============================================================================
-  // DADOS DO FORMULÁRIO
-  // ============================================================================
-  String? eventoFogoGeoJson;
   Duration? tempoOperacaoMinutos;
   DateTime? horarioChegada;
-  
-  TipoEmprego? tipoEmprego;
-  TipoEfetividadeCombate? efetividade;
-  Reforco? reforco;
-  TipoResultadoIncendio? tipoResultado;
-  
+
+  TipoEmpregoAereo? tipoEmprego;
+  EfetividadeCombate? efetividade;
+  bool necessidadeReforco = false;
+  ResultadoOcorrencia? resultadoOcorrencia;
+
   Set<OrigemAgua> origensAgua = {};
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-  ImagePicker get picker => _picker;
-  bool get isOffline => isOfflineNotifier.value;
+  // eventoFogoGeoJson kept for LocalizacaoMapaCard compatibility
+  String? eventoFogoGeoJson;
 
-  // ============================================================================
-  // FLAGS DE CONTROLE
-  // ============================================================================
   bool _isDisposed = false;
   bool _salvando = false;
 
-  // ============================================================================
-  // CONSTRUTOR
-  // ============================================================================
-  CombateAereoState({
-    required this.registroId,
-    required this.dadosIniciais,
-    bool isAvulso = false,
-  }) {
-    _isAvulso = isAvulso;
-    if (kDebugMode) {
-      debugPrint('🏗️ [AÉREO STATE] Construtor chamado');
-      debugPrint('   - isAvulso: $_isAvulso');
-      debugPrint('   - registroId: $registroId');
-    }
+  ImagePicker get picker => _picker;
+  bool get isOffline => isOfflineNotifier.value;
+
+  CombateAereoState({required this.registroId}) {
+    if (kDebugMode) debugPrint('🏗️ [AÉREO STATE] Construtor: registroId=$registroId');
     _init();
   }
 
-  // ============================================================================
-  // INICIALIZAÇÃO
-  // ============================================================================
   void _init() {
-    if (kDebugMode) {
-      debugPrint('🚀 [STATE AÉREO] _init() chamado');
-      debugPrint('   - isAvulso: $_isAvulso');
-    }
-    
     _idRegistroAtual = registroId;
     _setupConnectivityListener();
     _checkInitialConnectivity();
@@ -137,9 +76,7 @@ class CombateAereoState extends ChangeNotifier {
   }
 
   void _setupConnectivityListener() {
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen(_updateConnectionStatus);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
   Future<void> _checkInitialConnectivity() async {
@@ -155,115 +92,81 @@ class CombateAereoState extends ChangeNotifier {
   Future<void> _loadFormData() async {
     if (_idRegistroAtual != null) {
       await _carregarDadosExistentes();
-    } else if (dadosIniciais != null) {
-      _iniciarComDadosTemporarios();
     } else {
       _setLoading(false);
     }
   }
 
-  // ============================================================================
-  // CARREGAMENTO DE DADOS
-  // ============================================================================
-  void _iniciarComDadosTemporarios() {
-    if (kDebugMode) {
-      debugPrint('✅ [STATE] Inicializando AVULSO AÉREO');
-      debugPrint('   - Localização: (${dadosIniciais!.latitude}, ${dadosIniciais!.longitude})');
-    }
-    _setLoading(false);
-    
-    localizacaoNotifier.value = LatLng(
-      dadosIniciais!.latitude,
-      dadosIniciais!.longitude,
-    );
-    if (kDebugMode) {
-      debugPrint('   ✅ Campos pré-preenchidos');
-    }
-  }
-
   Future<void> _carregarDadosExistentes() async {
     try {
-      final combate = await _service.getResposta<CombateIncendioAereo>(
-        registroId: _idRegistroAtual!,
-        fromJson: (json) => CombateIncendioAereo.fromJson(json),
-        emptyFactory: (id) => CombateIncendioAereo(id: id),
+      final relatorio = await _service.getResposta<RelatorioAereo>(
+        despachoId: _idRegistroAtual!,
+        fromJson: (json) => RelatorioAereo.fromJson(json),
+        emptyFactory: (id) => RelatorioAereo(despachoId: id),
       ).timeout(
         const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Tempo limite excedido ao carregar dados');
-        },
+        onTimeout: () => RelatorioAereo(despachoId: _idRegistroAtual!),
       );
-
-      _popularFormulario(combate);
+      _popularFormulario(relatorio);
     } catch (e) {
-      final combateVazio = CombateIncendioAereo(id: _idRegistroAtual!);
-      _popularFormulario(combateVazio);
+      _popularFormulario(RelatorioAereo(despachoId: _idRegistroAtual!));
     } finally {
-      if (!_isDisposed) {
-        _setLoading(false);
-      }
+      if (!_isDisposed) _setLoading(false);
     }
   }
 
-  void _popularFormulario(CombateIncendioAereo combate) {
-    // Controllers
-    horimetroInicialController.text = combate.horimetroInicial ?? '';
-    horimetroFinalController.text = combate.horimetroFinal ?? '';
-    litrosAguaController.text = combate.quantidadeLitrosAgua?.toString() ?? '';
-    alijamentosController.text = combate.quantidadeAlijamento?.toString() ?? '';
-    descricaoOperacaoController.text = combate.historicoDescritivo ?? '';
-    resultadoDiaController.text = combate.resultadoOcorrencia ?? '';
+  void _popularFormulario(RelatorioAereo relatorio) {
+    horimetroInicialController.text = relatorio.horimetroInicial?.toString() ?? '';
+    horimetroFinalController.text = relatorio.horimetroFinal?.toString() ?? '';
+    litrosAguaController.text = relatorio.volumeAguaLitros?.toString() ?? '';
+    alijamentosController.text = relatorio.qtdeLancamentos?.toString() ?? '';
+    descricaoOperacaoController.text = relatorio.historicoDescritivo ?? '';
 
-    // Duration
-    tempoOperacaoMinutos = combate.tempoOperacaoMinutos != null
-        ? Duration(minutes: combate.tempoOperacaoMinutos!)
-        : null;
-
-    // Enums
-    tipoEmprego = combate.tipoEmprego;
-    efetividade = combate.efetividadeCombate;
-    reforco = combate.reforco;
-    tipoResultado = combate.tipoResultado;
-
-    // DateTime
-    horarioChegada = combate.horarioChegada;
-
-    // Localização
-    if (combate.latitudeAreaAtuacao != null &&
-        combate.longitudeAreaAtuacao != null) {
-      localizacaoNotifier.value = LatLng(
-        combate.latitudeAreaAtuacao!,
-        combate.longitudeAreaAtuacao!,
-      );
-    }
-
-    // Origem da água
-    if (combate.origemAgua != null) {
-      origensAgua.clear();
-      for (var nomeEnum in combate.origemAgua!) {
-        try {
-          origensAgua.add(
-            OrigemAgua.values.firstWhere((e) => e.name == nomeEnum),
-          );
-        } catch (_) {
-          if (kDebugMode) debugPrint('⚠️ OrigemAgua inválida: $nomeEnum');
-        }
+    // horasLiquidas → tempoOperacaoMinutos
+    if (relatorio.horasLiquidas != null) {
+      final parts = relatorio.horasLiquidas!.split(':');
+      if (parts.length == 2) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        tempoOperacaoMinutos = Duration(hours: h, minutes: m);
       }
     }
 
-    // GeoJSON
-    eventoFogoGeoJson = combate.eventoFogoGeoJson;
-
-    // Arquivos
-    if (combate.arquivosLocais.isNotEmpty) {
-      arquivosNotifier.value =
-          combate.arquivosLocais.map((path) => XFile(path)).toList();
+    // tiposEmprego → tipoEmprego (first value)
+    if (relatorio.tiposEmprego.isNotEmpty) {
+      try {
+        tipoEmprego = TipoEmpregoAereo.values.firstWhere(
+          (e) => e.name == relatorio.tiposEmprego.first,
+        );
+      } catch (_) {}
     }
+
+    efetividade = relatorio.efetividadeCombate;
+    necessidadeReforco = relatorio.necessidadeReforco;
+    resultadoOcorrencia = relatorio.resultadoOcorrencia;
+    outroResultadoDescricao = relatorio.outroResultadoDescricao;
+    resultadoDiaController.text = relatorio.outroResultadoDescricao ?? '';
+
+    horarioChegada = relatorio.dataInicio;
+
+    if (relatorio.areaAtuacaoLat != null && relatorio.areaAtuacaoLng != null) {
+      localizacaoNotifier.value = LatLng(relatorio.areaAtuacaoLat!, relatorio.areaAtuacaoLng!);
+    }
+
+    origensAgua = relatorio.origensAgua
+        .map((name) {
+          try {
+            return OrigemAgua.values.firstWhere((e) => e.name == name);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<OrigemAgua>()
+        .toSet();
   }
 
-  // ============================================================================
-  // SETTERS (COM PROTEÇÃO)
-  // ============================================================================
+  String? outroResultadoDescricao;
+
   void setTempoOperacao(Duration? value) {
     if (_isDisposed) return;
     tempoOperacaoMinutos = value;
@@ -276,27 +179,27 @@ class CombateAereoState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setTipoEmprego(TipoEmprego? value) {
+  void setTipoEmprego(TipoEmpregoAereo? value) {
     if (_isDisposed) return;
     tipoEmprego = value;
     notifyListeners();
   }
 
-  void setEfetividade(TipoEfetividadeCombate? value) {
+  void setEfetividade(EfetividadeCombate? value) {
     if (_isDisposed) return;
     efetividade = value;
     notifyListeners();
   }
 
-  void setReforco(Reforco? value) {
+  void setNecessidadeReforco(bool value) {
     if (_isDisposed) return;
-    reforco = value;
+    necessidadeReforco = value;
     notifyListeners();
   }
 
-  void setTipoResultado(TipoResultadoIncendio? value) {
+  void setResultadoOcorrencia(ResultadoOcorrencia? value) {
     if (_isDisposed) return;
-    tipoResultado = value;
+    resultadoOcorrencia = value;
     notifyListeners();
   }
 
@@ -329,145 +232,103 @@ class CombateAereoState extends ChangeNotifier {
     arquivosNotifier.value = lista;
   }
 
-  // ============================================================================
-  // VALIDAÇÃO
-  // ============================================================================
   bool validarFormulario() {
-    if (!formKey.currentState!.validate()) {
-      return false;
-    }
-
-    if (localizacaoNotifier.value == null) {
-      return false;
-    }
-
+    if (!formKey.currentState!.validate()) return false;
+    if (localizacaoNotifier.value == null) return false;
     return true;
   }
 
- 
   Future<String?> salvar() async {
-    if (_salvando) return "Salvamento já em andamento.";
-    if (!validarFormulario()) return "Preencha os campos obrigatórios e a localização.";
+    if (_salvando) return 'Salvamento já em andamento.';
+    if (!validarFormulario()) return 'Preencha os campos obrigatórios e a localização.';
     _salvando = true;
     _setLoading(true);
-    bool sucesso = false; 
+    bool sucesso = false;
     try {
-      await _garantirRegistroHeader();
-      final combate = _construirModeloCombate();
-      final anexosParaEnvio = List<XFile>.from(arquivosNotifier.value);
-
-      await _service.salvarResposta(
-        resposta: combate,
-        arquivos: anexosParaEnvio.isNotEmpty ? anexosParaEnvio : null,
-        descricaoAvulsa: _isAvulso ? dadosIniciais?.descricao : null, 
-        isAvulso: _isAvulso,
-      );
-      sucesso = true; 
-      return null; 
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('❌ [SALVAR] Erro: $e');
-        debugPrint(stackTrace.toString());
+      if (_idRegistroAtual == null) {
+        return 'Despacho não identificado.';
       }
-      return _tratarErroSalvamento(e); 
+      final relatorio = _construirRelatorio();
+      await _service.salvarResposta(resposta: relatorio);
+      await AttachmentUploadService.instance.salvarOuEnfileirar(
+        _idRegistroAtual!,
+        arquivosNotifier.value,
+        categoria,
+      );
+      sucesso = true;
+      return null;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('❌ [SALVAR AEREO] $e');
+        debugPrint(st.toString());
+      }
+      return _tratarErro(e);
     } finally {
       if (!_isDisposed) {
         _salvando = false;
-        if (!sucesso) { 
-          _setLoading(false); 
-        }
+        if (!sucesso) _setLoading(false);
       }
     }
   }
 
-  Future<void> _garantirRegistroHeader() async {
-    if (_idRegistroAtual != null) return;
-    if (dadosIniciais == null) {
-      throw Exception("Dados iniciais não fornecidos.");
-    }
-    final userSub = await AuthService().getUserSub();
-    if (userSub == null) {
-      throw Exception("Usuário não identificado.");
-    }
-    final novoRegistro = await LocalDbService.criarRegistroAvulsoOffline(
-      categoria: dadosIniciais!.categoria,
-      lat: dadosIniciais!.latitude,
-      long: dadosIniciais!.longitude,
-      userSub: userSub,
-      descricao: dadosIniciais!.descricao,
-    );
-    _idRegistroAtual = novoRegistro.id;
-    if (kDebugMode) {
-      debugPrint('✅ [GARANTIR HEADER] Registro criado: $_idRegistroAtual');
-    }
-  }
-
-  CombateIncendioAereo _construirModeloCombate() {
-    if (_idRegistroAtual == null) {
-      throw Exception("ID não definido.");
+  RelatorioAereo _construirRelatorio() {
+    final String? horasLiquidas;
+    if (tempoOperacaoMinutos != null) {
+      final h = (tempoOperacaoMinutos!.inMinutes ~/ 60).toString().padLeft(2, '0');
+      final m = (tempoOperacaoMinutos!.inMinutes % 60).toString().padLeft(2, '0');
+      horasLiquidas = '$h:$m';
+    } else {
+      horasLiquidas = null;
     }
 
-    return CombateIncendioAereo(
-      id: _idRegistroAtual!,
-      horimetroInicial: horimetroInicialController.text.trim(),
-      horimetroFinal: horimetroFinalController.text.trim(),
-      tempoOperacaoMinutos: tempoOperacaoMinutos?.inMinutes,
-      tipoEmprego: tipoEmprego,
-      quantidadeLitrosAgua: int.tryParse(litrosAguaController.text),
-      quantidadeAlijamento: int.tryParse(alijamentosController.text),
-      origemAgua: origensAgua.map((e) => e.name).toList(),
-      latitudeAreaAtuacao: localizacaoNotifier.value!.latitude,
-      longitudeAreaAtuacao: localizacaoNotifier.value!.longitude,
-      horarioChegada: horarioChegada,
+    return RelatorioAereo(
+      despachoId: _idRegistroAtual!,
+      horimetroInicial: double.tryParse(horimetroInicialController.text.trim()),
+      horimetroFinal: double.tryParse(horimetroFinalController.text.trim()),
+      horasLiquidas: horasLiquidas,
+      tiposEmprego: tipoEmprego != null ? [tipoEmprego!.name] : [],
+      areaAtuacaoLat: localizacaoNotifier.value?.latitude,
+      areaAtuacaoLng: localizacaoNotifier.value?.longitude,
+      qtdeLancamentos: int.tryParse(alijamentosController.text.trim()),
+      houveUsoAgua: litrosAguaController.text.trim().isNotEmpty,
+      volumeAguaLitros: int.tryParse(litrosAguaController.text.trim()),
+      origensAgua: origensAgua.map((e) => e.name).toList(),
       efetividadeCombate: efetividade,
-      reforco: reforco,
+      necessidadeReforco: necessidadeReforco,
+      tiposReforcoNecessarios: const [],
       historicoDescritivo: descricaoOperacaoController.text.trim(),
-      tipoResultado: tipoResultado,
-      resultadoOcorrencia: tipoResultado == TipoResultadoIncendio.OUTRO
+      resultadoOcorrencia: resultadoOcorrencia,
+      outroResultadoDescricao: resultadoOcorrencia == ResultadoOcorrencia.OUTRO
           ? resultadoDiaController.text.trim()
           : null,
+      dataInicio: horarioChegada,
     );
   }
 
-  // ============================================================================
-  // TRATAR ERRO
-  // ============================================================================
-  String _tratarErroSalvamento(dynamic erro) {
-    final mensagem = erro.toString();
-
-    if (mensagem.contains('400') ||
-        mensagem.toLowerCase().contains('bad request')) {
+  String _tratarErro(dynamic erro) {
+    final msg = erro.toString();
+    if (msg.contains('400') || msg.toLowerCase().contains('bad request')) {
       return 'Verifique os campos preenchidos.';
     }
-
-    if (mensagem.toLowerCase().contains('network') ||
-        mensagem.contains('connection')) {
+    if (msg.toLowerCase().contains('network') || msg.contains('connection')) {
       return 'Erro de conexão. Tente novamente.';
     }
-
     return 'Erro inesperado: $erro';
   }
 
-  // ============================================================================
-  // DISPOSE
-  // ============================================================================
   @override
   void dispose() {
     _isDisposed = true;
-
     _connectivitySubscription.cancel();
-
     horimetroInicialController.dispose();
     horimetroFinalController.dispose();
     litrosAguaController.dispose();
     alijamentosController.dispose();
     descricaoOperacaoController.dispose();
     resultadoDiaController.dispose();
-
     isOfflineNotifier.dispose();
     localizacaoNotifier.dispose();
     arquivosNotifier.dispose();
-
     super.dispose();
   }
 }

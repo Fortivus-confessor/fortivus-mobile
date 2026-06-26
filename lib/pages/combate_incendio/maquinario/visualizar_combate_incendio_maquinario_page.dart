@@ -1,32 +1,30 @@
-
-import 'package:fortivus_app/components/auth_image_widget.dart';
-import 'package:fortivus_app/model/combate_incendio_maquinario.dart';
-import 'package:fortivus_app/services/responder/responder_maquinario_service.dart';  
+import 'package:fortivus_app/enums/enums.dart';
+import 'package:fortivus_app/model/relatorio_maquinario.dart';
+import 'package:fortivus_app/services/responder/responder_maquinario_service.dart';
 import 'package:fortivus_app/util/map_launcher_util.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:fortivus_app/enums/tipo_resultado_incendio.dart';
 
 class VisualizarCombateMaquinarioPage extends StatefulWidget {
   final int registroId;
   const VisualizarCombateMaquinarioPage({super.key, required this.registroId});
-  
+
   @override
-  State<VisualizarCombateMaquinarioPage> createState() => _VisualizarCombateMaquinarioPageState();
+  State<VisualizarCombateMaquinarioPage> createState() =>
+      _VisualizarCombateMaquinarioPageState();
 }
 
-class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaquinarioPage> {
-  final ResponderMaquinarioService _service = ResponderMaquinarioService();  // ✅ MUDADO
-  late final Future<CombateIncendioMaquinario> _futureCombate;
+class _VisualizarCombateMaquinarioPageState
+    extends State<VisualizarCombateMaquinarioPage> {
+  final ResponderMaquinarioService _service = ResponderMaquinarioService();
+  late final Future<RelatorioMaquinario> _futureRelatorio;
 
   @override
   void initState() {
     super.initState();
-    // ✅ REMOVIDO: categoria (não é parâmetro)
-    _futureCombate = _service.getResposta<CombateIncendioMaquinario>(
-      registroId: widget.registroId,
-      fromJson: (json) => CombateIncendioMaquinario.fromJson(json),
-      emptyFactory: (id) => CombateIncendioMaquinario(id: id),
+    _futureRelatorio = _service.getResposta<RelatorioMaquinario>(
+      despachoId: widget.registroId,
+      fromJson: (json) => RelatorioMaquinario.fromJson(json),
+      emptyFactory: (id) => RelatorioMaquinario(despachoId: id),
     );
   }
 
@@ -41,70 +39,20 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Não informado';
-    return '${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year} ${date.hour.toString().padLeft(2,'0')}:${date.minute.toString().padLeft(2,'0')}';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _formatTime(DateTime? time) {
-    if (time == null) return '--:--';
-    return '${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}';
-  }
-
-  String _calcularTempoOperacao(DateTime? inicio, DateTime? fim) {
-    if (inicio == null || fim == null) return 'Não calculado';
-    final duracao = fim.difference(inicio);
-    final horas = duracao.inHours;
-    final minutos = duracao.inMinutes.remainder(60);
-    return '$horas h $minutos min';
-  }
-
-  Widget _buildImagemAdaptavel(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
-    bool isLocal = path.startsWith('/') || path.startsWith('file://');
-    if (isLocal) {
-      return Image.file(
-        File(path),
-        fit: fit,
-        width: width,
-        height: height,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: width,
-            height: height,
-            color: Colors.grey[200],
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
-      );
-    } else {
-      return AuthImageWidget(
-        fileName: path,
-        fit: fit,
-        width: width,
-        height: height,
-      );
-    }
-  }
-
-  void _abrirImagemFullScreen(BuildContext context, String nomeArquivo) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text("Visualização", style: TextStyle(color: Colors.white)),
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              panEnabled: true,
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: _buildImagemAdaptavel(nomeArquivo, fit: BoxFit.contain),
-            ),
-          ),
-        ),
-      ),
-    );
+  String _resolveEmprego(List<String> tiposEmprego) {
+    if (tiposEmprego.isEmpty) return 'Não informado';
+    return tiposEmprego.map((name) {
+      try {
+        return TipoEmpregoMaquinario.values
+            .firstWhere((e) => e.name == name)
+            .descricao;
+      } catch (_) {
+        return name;
+      }
+    }).join(', ');
   }
 
   @override
@@ -115,8 +63,8 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
         backgroundColor: Colors.amber[800],
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<CombateIncendioMaquinario>(
-        future: _futureCombate,
+      body: FutureBuilder<RelatorioMaquinario>(
+        future: _futureRelatorio,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -134,30 +82,19 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
             );
           }
           if (snapshot.hasData) {
-            final combate = snapshot.data!;
+            final relatorio = snapshot.data!;
             return SingleChildScrollView(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. LOCALIZAÇÃO
-                  _buildLocalizacaoCard(context, combate),
+                  _buildLocalizacaoCard(context, relatorio),
                   const SizedBox(height: 16),
-
-                  // 2. DADOS OPERACIONAIS
-                  _buildOperacionalCard(combate),
+                  _buildOperacionalCard(relatorio),
                   const SizedBox(height: 16),
-
-                  // 3. DADOS DO MAQUINÁRIO
-                  _buildMaquinarioCard(combate),
+                  _buildMaquinarioCard(relatorio),
                   const SizedBox(height: 16),
-
-                  // 4. RELATÓRIO
-                  _buildRelatorioCard(combate),
-                  const SizedBox(height: 16),
-
-                  // 5. ANEXOS GERAIS
-                  _buildGaleriaCard(context, combate),
+                  _buildRelatorioCard(relatorio),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -169,12 +106,9 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
     );
   }
 
-  Widget _buildLocalizacaoCard(BuildContext context, CombateIncendioMaquinario combate) {
-    bool temCoordenadas = combate.latitudeAreaAtuacao != null && combate.longitudeAreaAtuacao != null;
-    String formatCoord(double? valor) {
-      if (valor == null) return '--';
-      return valor.toStringAsFixed(6);
-    }
+  Widget _buildLocalizacaoCard(BuildContext context, RelatorioMaquinario r) {
+    final temCoordenadas = r.areaAtuacaoLat != null && r.areaAtuacaoLng != null;
+    String fmt(double? v) => v != null ? v.toStringAsFixed(6) : '--';
     return _buildCardBase(
       title: 'Localização',
       icon: Icons.location_on,
@@ -182,8 +116,8 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
       children: [
         Row(
           children: [
-            Expanded(child: _buildInfoTile('Latitude', formatCoord(combate.latitudeAreaAtuacao))),
-            Expanded(child: _buildInfoTile('Longitude', formatCoord(combate.longitudeAreaAtuacao))),
+            Expanded(child: _buildInfoTile('Latitude', fmt(r.areaAtuacaoLat))),
+            Expanded(child: _buildInfoTile('Longitude', fmt(r.areaAtuacaoLng))),
           ],
         ),
         if (temCoordenadas) ...[
@@ -196,13 +130,8 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () {
-                MapLauncherUtil.openMapsDialog(
-                  context,
-                  combate.latitudeAreaAtuacao!,
-                  combate.longitudeAreaAtuacao!,
-                );
-              },
+              onPressed: () => MapLauncherUtil.openMapsDialog(
+                context, r.areaAtuacaoLat!, r.areaAtuacaoLng!),
             ),
           ),
         ]
@@ -210,7 +139,7 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
     );
   }
 
-  Widget _buildOperacionalCard(CombateIncendioMaquinario combate) {
+  Widget _buildOperacionalCard(RelatorioMaquinario r) {
     return _buildCardBase(
       title: 'Dados Operacionais',
       icon: Icons.settings,
@@ -218,63 +147,38 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
       children: [
         Row(
           children: [
-            Expanded(child: _buildInfoTile('Efetividade', _getDescricao(combate.efetividadeCombate))),
-            Expanded(child: _buildInfoTile('Reforço', _getDescricao(combate.reforco))),
+            Expanded(child: _buildInfoTile('Efetividade', _getDescricao(r.efetividadeCombate))),
+            Expanded(child: _buildInfoTile('Necessidade de Reforço', r.necessidadeReforco ? 'Sim' : 'Não')),
           ],
         ),
         const SizedBox(height: 12),
-        _buildInfoTile('Horário Chegada', _formatDate(combate.horarioChegada)),
+        _buildInfoTile('Horário de Chegada', _formatDate(r.dataInicio)),
         const SizedBox(height: 12),
-        _buildInfoTile('Tipo de Emprego', _getDescricao(combate.tipoEmprego)),
+        _buildInfoTile('Tipo de Emprego', _resolveEmprego(r.tiposEmprego)),
       ],
     );
   }
 
-  Widget _buildMaquinarioCard(CombateIncendioMaquinario combate) {
+  Widget _buildMaquinarioCard(RelatorioMaquinario r) {
     return _buildCardBase(
       title: 'Dados do Maquinário',
       icon: Icons.agriculture,
       iconColor: Colors.amber[800],
       children: [
-        // Horímetro
         Row(
           children: [
-            Expanded(
-              child: _buildInfoTile(
-                'Horímetro Inicial',
-                combate.horimetroInicial ?? '--'
-              )
-            ),
-            Expanded(
-              child: _buildInfoTile(
-                'Horímetro Final',
-                combate.horimetroFinal ?? '--'
-              )
-            ),
+            Expanded(child: _buildInfoTile('Horímetro Inicial', r.horimetroInicial?.toString() ?? '--')),
+            Expanded(child: _buildInfoTile('Horímetro Final', r.horimetroFinal?.toString() ?? '--')),
           ],
         ),
         const SizedBox(height: 12),
-        
-        // Horários de Operação
         Row(
           children: [
-            Expanded(
-              child: _buildInfoTile(
-                'Início Operação',
-                _formatTime(combate.horaInicioOperacao)
-              )
-            ),
-            Expanded(
-              child: _buildInfoTile(
-                'Fim Operação',
-                _formatTime(combate.horaFinalOperacao)
-              )
-            ),
+            Expanded(child: _buildInfoTile('Início Operação', r.horaInicioOperacao ?? '--')),
+            Expanded(child: _buildInfoTile('Fim Operação', r.horaFimOperacao ?? '--')),
           ],
         ),
         const SizedBox(height: 12),
-        
-        // Tempo Total e Comprimento
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -287,36 +191,32 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Tempo Total de Operação:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
-                  ),
+                  const Text('Tempo Total de Operação:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   Text(
-                    _calcularTempoOperacao(combate.horaInicioOperacao, combate.horaFinalOperacao),
+                    r.tempoLiquido ?? '--',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.amber[900]
-                    )
+                      color: Colors.amber[900],
+                    ),
                   ),
                 ],
               ),
-              if (combate.comprimentoAceiro != null) ...[
+              if (r.comprimentoAceiros != null) ...[
                 const Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Comprimento do Aceiro:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
-                    ),
+                    const Text('Comprimento do Aceiro:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     Text(
-                      '${combate.comprimentoAceiro!.toStringAsFixed(2)} m',
+                      '${r.comprimentoAceiros!.toStringAsFixed(2)} m',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.amber[900]
-                      )
+                        color: Colors.amber[900],
+                      ),
                     ),
                   ],
                 ),
@@ -328,75 +228,19 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
     );
   }
 
-  Widget _buildRelatorioCard(CombateIncendioMaquinario combate) {
-    String textoResultado;
-    if (combate.tipoResultado == TipoResultadoIncendio.OUTRO) {
-      textoResultado = combate.resultadoOcorrencia ?? 'Não informado';
-    } else {
-      textoResultado = _getDescricao(combate.tipoResultado);
-    }
-    
+  Widget _buildRelatorioCard(RelatorioMaquinario r) {
+    final textoResultado = r.resultadoOcorrencia == ResultadoOcorrencia.OUTRO
+        ? (r.outroResultadoDescricao ?? 'Não informado')
+        : _getDescricao(r.resultadoOcorrencia);
+
     return _buildCardBase(
       title: 'Relatório',
       icon: Icons.assignment,
       iconColor: Colors.green[700],
       children: [
-        _buildInfoTile('Descrição da Operação', combate.historicoDescritivo ?? 'Não informado'),
+        _buildInfoTile('Descrição da Operação', r.historicoDescritivo ?? 'Não informado'),
         const SizedBox(height: 12),
-        _buildInfoTile('Resultado do Dia', textoResultado),
-      ],
-    );
-  }
-  
-  Widget _buildGaleriaCard(BuildContext context, CombateIncendioMaquinario combate) {
-    if (combate.arquivosLocais.isEmpty) return const SizedBox.shrink();
-    return _buildCardBase(
-      title: 'Anexos',
-      icon: Icons.attach_file,
-      children: [
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: combate.arquivosLocais.length,
-            itemBuilder: (context, index) {
-              final nomeArquivo = combate.arquivosLocais[index];
-              final isImage = nomeArquivo.toLowerCase().endsWith('.jpg') ||
-                              nomeArquivo.toLowerCase().endsWith('.png') ||
-                              nomeArquivo.toLowerCase().endsWith('.jpeg');
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: GestureDetector(
-                  onTap: () {
-                    if (isImage) _abrirImagemFullScreen(context, nomeArquivo);
-                  },
-                  child: Container(
-                    width: 120,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade50,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: isImage
-                        ? _buildImagemAdaptavel(nomeArquivo, width: 120, height: 120)
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.insert_drive_file, color: Colors.grey, size: 30),
-                              SizedBox(height: 4),
-                              Text("Arquivo", style: TextStyle(fontSize: 10))
-                            ],
-                          ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+        _buildInfoTile('Resultado da Ocorrência', textoResultado),
       ],
     );
   }
@@ -427,7 +271,7 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87
+                      color: Colors.black87,
                     ),
                   ),
                 ),
@@ -445,7 +289,8 @@ class _VisualizarCombateMaquinarioPageState extends State<VisualizarCombateMaqui
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 2),
         Text(value, style: const TextStyle(fontSize: 15, color: Colors.black87)),
       ],

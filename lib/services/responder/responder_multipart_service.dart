@@ -88,6 +88,7 @@ abstract class ResponderMultipartService implements ResponderBaseService {
       dadosJson: jsonEncode(dados),
     );
     await LocalDbService.instance.updateDespachoStatus(despachoId, 'PENDENTE_RELATORIO');
+    await LocalDbService.instance.markDespachoUnsynced(despachoId);
     ResponderSharedHelper.log('💾 [$categoria] Resposta salva localmente');
   }
 
@@ -112,7 +113,7 @@ abstract class ResponderMultipartService implements ResponderBaseService {
           ResponderSharedHelper.log('✅ [$categoria] Sincronizado: ${resposta.despachoId}');
         } catch (e) {
           await LocalDbService.instance
-              .updateRespostaStatus(resposta.id, 'ERRO', erro: e.toString());
+              .updateRespostaStatus(resposta.id, 'ERRO');
           ResponderSharedHelper.log('❌ [$categoria] Erro: $e');
         } finally {
           _respostasEmProcessamento.remove(resposta.despachoId);

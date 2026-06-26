@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/model/propriedade_apoio.dart';
+import 'package:fortivus_app/model/resposta_modelo.dart';
 
-class RelatorioTerrestre {
+class RelatorioTerrestre implements RespostaModelo {
   final int despachoId;
   final List<AcaoCombate> acoesRealizadas;
   final List<OrgaoApoio> orgaosApoio;

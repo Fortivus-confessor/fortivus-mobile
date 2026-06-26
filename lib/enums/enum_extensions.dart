@@ -1,38 +1,24 @@
 import 'enums.dart';
 
 extension StringToEnum on String {
-  TipoAcaoCombate toTipoAcaoCombateIncendio() {
-    return TipoAcaoCombate.values.firstWhere(
+  AcaoCombate toAcaoCombate() {
+    return AcaoCombate.values.firstWhere(
       (e) => e.name == this,
-      orElse: () => TipoAcaoCombate.NENHUM,
+      orElse: () => AcaoCombate.NENHUMA,
     );
   }
 
-  TipoApoioOrgao toTipoApoioOrgao() {
-    return TipoApoioOrgao.values.firstWhere(
+  OrgaoApoio toOrgaoApoio() {
+    return OrgaoApoio.values.firstWhere(
       (e) => e.name == this,
-      orElse: () => TipoApoioOrgao.NENHUM,
+      orElse: () => OrgaoApoio.NENHUM,
     );
   }
 
-  TipoAreaAtuacao toTipoAreaAtuacao() {
-    return TipoAreaAtuacao.values.firstWhere(
+  OrigemIncendio toOrigemIncendio() {
+    return OrigemIncendio.values.firstWhere(
       (e) => e.name == this,
-      orElse: () => TipoAreaAtuacao.NENHUM,
-    );
-  }
-
-  TipoCausaIncendio toTipoCausaIncendio() {
-    return TipoCausaIncendio.values.firstWhere(
-      (e) => e.name == this,
-      orElse: () => TipoCausaIncendio.SEM_INCENDIOS_CAUSA,
-    );
-  }
-
-  TipoMaterialUtilizado toTipoMateriaisUtilizados() {
-    return TipoMaterialUtilizado.values.firstWhere(
-      (e) => e.name == this,
-      orElse: () => TipoMaterialUtilizado.NENHUM,
+      orElse: () => OrigemIncendio.SEM_INDICIOS,
     );
   }
 }

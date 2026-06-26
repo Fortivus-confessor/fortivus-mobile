@@ -185,6 +185,10 @@ class AppDatabase extends _$AppDatabase {
       (update(despachos)..where((d) => d.id.equals(id)))
           .write(const DespachosCompanion(isSynced: Value(1)));
 
+  Future<void> markDespachoUnsynced(int id) =>
+      (update(despachos)..where((d) => d.id.equals(id)))
+          .write(const DespachosCompanion(isSynced: Value(0)));
+
   Future<void> deleteDespacho(int id) =>
       (delete(despachos)..where((d) => d.id.equals(id))).go();
 
@@ -196,10 +200,10 @@ class AppDatabase extends _$AppDatabase {
 
   // ─── RESPOSTAS PENDENTES ─────────────────────────────────────────────────
 
-  Future<List<RespostaPendente>> getAllRespostasPendentes() =>
+  Future<List<RespostasPendente>> getAllRespostasPendentes() =>
       select(respostasPendentes).get();
 
-  Future<List<RespostaPendente>> getRespostasPendentesByStatus(
+  Future<List<RespostasPendente>> getRespostasPendentesByStatus(
           String status) =>
       (select(respostasPendentes)..where((r) => r.status.equals(status))).get();
 
@@ -208,12 +212,11 @@ class AppDatabase extends _$AppDatabase {
       into(respostasPendentes).insert(resposta);
 
   Future<void> updateRespostaStatus(int id, String status,
-      {String? erro, int? tentativas}) {
+      {int? tentativas}) {
     return (update(respostasPendentes)..where((r) => r.id.equals(id))).write(
       RespostasPendentesCompanion(
         status: Value(status),
         ultimaTentativa: Value(DateTime.now().toIso8601String()),
-        erro: erro != null ? Value(erro) : const Value.absent(),
         tentativasSinc:
             tentativas != null ? Value(tentativas) : const Value.absent(),
       ),
@@ -227,6 +230,9 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Evidencia>> getEvidenciasByDespacho(int despachoId) =>
       (select(evidencias)..where((e) => e.despachoId.equals(despachoId))).get();
+
+  Future<List<Evidencia>> getPendingEvidencias() =>
+      (select(evidencias)..where((e) => e.statusSincronizacao.equals('PENDENTE'))).get();
 
   Future<int> insertEvidencia(EvidenciasCompanion evidencia) =>
       into(evidencias).insert(evidencia);
