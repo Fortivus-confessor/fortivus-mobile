@@ -38,3 +38,5 @@
 **/ios/Runner/GeneratedPluginRegistrant.*
 
 .vscode/
+
+*.md
