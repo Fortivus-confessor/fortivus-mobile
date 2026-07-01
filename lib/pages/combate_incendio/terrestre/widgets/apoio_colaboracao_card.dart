@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../combate_terrestre_state.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 class ApoioColaboracaoCard extends StatelessWidget {
   const ApoioColaboracaoCard({super.key});
@@ -61,12 +62,12 @@ class ApoioColaboracaoCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: context.fx.surfaceAlt,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
+                  child: Text(
                     "Nenhuma propriedade registrada.",
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: context.fx.textSecondary),
                     textAlign: TextAlign.center,
                   ),
                 )

@@ -153,7 +153,7 @@ class _PropriedadeDialogState extends State<PropriedadeDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: TacticalTheme.primary,
+                color: TacticalTheme.accentOrange,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),

@@ -48,7 +48,6 @@ class _CombateMaquinarioViewState extends State<_CombateMaquinarioView> {
       builder: (context, state, _) {
         if (state.isLoading) {
           return Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: _buildAppBar(isLoading: true),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -57,7 +56,6 @@ class _CombateMaquinarioViewState extends State<_CombateMaquinarioView> {
         return PopScope(
           canPop: !state.isLoading,
           child: Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: _buildAppBar(isLoading: state.isLoading),
             body: _buildFormBody(state, context),
           ),
@@ -72,16 +70,10 @@ class _CombateMaquinarioViewState extends State<_CombateMaquinarioView> {
         ResponderCombateMaquinarioPage._pageTitle,
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      backgroundColor: TacticalTheme.primary,
-      foregroundColor: Colors.white,
-      elevation: 2,
       leading: isLoading
           ? const Padding(
               padding: EdgeInsets.all(14),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: TacticalTheme.accentOrange),
             )
           : null,
     );

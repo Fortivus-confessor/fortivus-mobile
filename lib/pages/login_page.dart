@@ -566,7 +566,6 @@ class _LoginPageState extends State<LoginPage> {
           label: 'Entrar',
           icon: Icons.security,
           onPressed: _isLoading ? null : _handleOnlineLogin,
-          backgroundColor: Colors.blue[700],
         ),
       ],
     );

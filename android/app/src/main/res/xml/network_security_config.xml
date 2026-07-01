@@ -1,25 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Configuração Global: Proibir HTTP sem criptografia por padrão -->
+    <!-- Configuração Global: Proibir HTTP sem criptografia por padrão.
+         fortivus.xyz usa certificado Let's Encrypt válido via Traefik/ACME,
+         então a validação padrão contra os CAs do sistema é suficiente. -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-
-    <!-- Configurações específicas para domínios do CBM-MT (Produção e Homologação) -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">cbm.mt.gov.br</domain>
-        <trust-anchors>
-            <certificates src="system" />
-            
-            <!-- ✅ BLINDAGEM SSL DEFINITIVA (Sectigo/USERTrust) -->
-            <!-- Estes certificados garantem a confiança mesmo se o servidor não enviar a cadeia completa -->
-            <certificates src="@raw/sectigo_r36" />
-            <certificates src="@raw/sectigo_r46" />
-            <certificates src="@raw/usertrust_root" />
-        </trust-anchors>
-    </domain-config>
 
     <debug-overrides>
         <trust-anchors>

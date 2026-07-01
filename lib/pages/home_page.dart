@@ -8,6 +8,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
+import 'package:fortivus_app/theme/theme_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -322,113 +324,177 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final menuItems = [
-      _MenuItem(
-        label: 'PENDENTES', 
-        icon: Icons.warning, 
-        color: Colors.white, 
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsultaRegistrosPage())).then((_) {
-            if (mounted) {
-              _carregarContadores(forceRefresh: true);
-            }
-          });
-        }, 
-        badgeCount: pendentesCount, 
-        isLoading: _isLoading, 
-        badgeColor: Colors.red
-      ),
-      _MenuItem(
-        label: 'ENCERRADOS', 
-        icon: Icons.check_box, 
-        color: Colors.white, 
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsultaRegistrosEncerradosPage())).then((_) {
-            if (mounted) {
-              _carregarContadores(forceRefresh: true);
-            }
-          });
-        }, 
-        badgeCount: encerradosCount, 
-        isLoading: _isLoading, 
-        badgeColor: Colors.green.shade600
-      ),
-    ];
+    final fx = context.fx;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        centerTitle: true,
-        toolbarHeight: 100,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
+        titleSpacing: 20,
+        toolbarHeight: 72,
+        title: Row(
           children: [
-            Image.asset('assets/images/logo-fortivus.png', height: 50),
-            const SizedBox(height: 4),
-            const Text('FORTIVUS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Image.asset('assets/images/logo-fortivus.png', height: 38),
+            const SizedBox(width: 12),
+            const Text('FORTIVUS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
           ],
         ),
-        actions: [IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: _logout)],
+        actions: [
+          ListenableBuilder(
+            listenable: ThemeController.instance,
+            builder: (context, _) => IconButton(
+              tooltip: 'Alternar tema',
+              icon: Icon(Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined),
+              onPressed: () => ThemeController.instance.toggle(context),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Sair',
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
-      body: Column(
-        children: menuItems.map((item) => Expanded(
-          child: InkWell(
-            onTap: item.onTap, 
-            child: Container(
-              width: double.infinity, 
-              decoration: BoxDecoration(
-                color: item.color, 
-                border: const Border(
-                  top: BorderSide(color: Colors.black26, width: 1), 
-                  bottom: BorderSide(color: Colors.black26, width: 1)
-                )
-              ), 
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center, 
-                  children: [
-                    Stack(
-                      clipBehavior: Clip.none, 
-                      children: [
-                        Icon(item.icon, color: Colors.black, size: 40), 
-                        Positioned(
-                          right: -20, 
-                          top: -12, 
-                          child: Builder(builder: (context) { 
-                            if (item.isLoading == true) {
-                              return SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(item.badgeColor)));
-                            }
-                            if (item.badgeCount != null && item.badgeCount! > 0) {
-                              return _Badge(count: item.badgeCount!, color: item.badgeColor);
-                            }
-                            return const SizedBox.shrink(); 
-                          })
-                        )
-                      ]
-                    ), 
-                    const SizedBox(height: 8), 
-                    Text(item.label, style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold))
-                  ]
-                )
-              )
-            )
-          )
-        )).toList()
+      body: RefreshIndicator(
+        color: FortivusBrand.orange,
+        onRefresh: () => _carregarContadores(forceRefresh: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          children: [
+            Text('Painel operacional',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: fx.textPrimary)),
+            const SizedBox(height: 4),
+            Text('Selecione uma categoria para ver as ocorrências.',
+                style: TextStyle(fontSize: 14, color: fx.textSecondary)),
+            const SizedBox(height: 20),
+            _DashboardCard(
+              label: 'Pendentes',
+              subtitle: 'Ocorrências aguardando resposta',
+              icon: Icons.local_fire_department_rounded,
+              accent: FortivusBrand.orange,
+              count: pendentesCount,
+              isLoading: _isLoading,
+              onTap: () {
+                Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const ConsultaRegistrosPage()))
+                    .then((_) {
+                  if (mounted) _carregarContadores(forceRefresh: true);
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            _DashboardCard(
+              label: 'Encerrados',
+              subtitle: 'Histórico de ocorrências concluídas',
+              icon: Icons.verified_rounded,
+              accent: FortivusBrand.green,
+              count: encerradosCount,
+              isLoading: _isLoading,
+              onTap: () {
+                Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const ConsultaRegistrosEncerradosPage()))
+                    .then((_) {
+                  if (mounted) _carregarContadores(forceRefresh: true);
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _MenuItem {
-  final String label; final IconData icon; final Color color; final VoidCallback onTap; final int? badgeCount; final bool? isLoading; final Color badgeColor;
-  const _MenuItem({required this.label, required this.icon, required this.color, required this.onTap, this.badgeCount, this.isLoading, this.badgeColor = Colors.red});
-}
+class _DashboardCard extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final int count;
+  final bool isLoading;
+  final VoidCallback onTap;
 
-class _Badge extends StatelessWidget {
-  final int count; final Color color;
-  const _Badge({required this.count, this.color = Colors.red});
+  const _DashboardCard({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.count,
+    required this.isLoading,
+    required this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: const [BoxShadow(color: Colors.black38, spreadRadius: 0.5, blurRadius: 3, offset: Offset(0, 1))]), constraints: const BoxConstraints(minWidth: 28, minHeight: 28), child: Center(child: Text(count > 99 ? '99+' : '$count', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))));
+    final fx = context.fx;
+    return Material(
+      color: fx.cardFill,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: fx.cardBorder),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accent, size: 30),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold, color: fx.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: TextStyle(fontSize: 13, color: fx.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (isLoading)
+                SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: accent))
+              else
+                Container(
+                  constraints: const BoxConstraints(minWidth: 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: count > 0 ? accent : fx.surfaceAlt,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: count > 0 ? Colors.white : fx.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, color: fx.textDisabled),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 class AnexosFotoCard extends StatefulWidget {
   final ValueNotifier<List<XFile>> arquivosNotifier;
@@ -176,8 +177,8 @@ class _AnexosFotoCardState extends State<AnexosFotoCard> {
                           onPressed: _adicionarFotoCamera,
                           icon: Icons.camera_alt,
                           label: 'Câmera',
-                          color: Colors.grey.shade200,
-                          textColor: Colors.black87,
+                          color: context.fx.surfaceAlt,
+                          textColor: context.fx.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -186,8 +187,8 @@ class _AnexosFotoCardState extends State<AnexosFotoCard> {
                           onPressed: _adicionarDaGaleria,
                           icon: Icons.photo_library,
                           label: 'Galeria',
-                          color: Colors.grey.shade200,
-                          textColor: Colors.black87,
+                          color: context.fx.surfaceAlt,
+                          textColor: context.fx.textPrimary,
                         ),
                       ),
                     ],
@@ -199,8 +200,8 @@ class _AnexosFotoCardState extends State<AnexosFotoCard> {
                       onPressed: _adicionarArquivos,
                       icon: Icons.folder_open,
                       label: 'Adicionar Documentos',
-                      color: TacticalTheme.primary.withValues(alpha: 0.1),
-                      textColor: TacticalTheme.primary,
+                      color: TacticalTheme.accentOrange.withValues(alpha: 0.12),
+                      textColor: TacticalTheme.accentOrange,
                     ),
                   ),
                 ],
@@ -296,9 +297,9 @@ class _AnexosFotoCardState extends State<AnexosFotoCard> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
+              color: context.fx.surfaceAlt,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: context.fx.cardBorder),
               image: isImg
                   ? DecorationImage(
                       image: FileImage(File(arquivo.path)),

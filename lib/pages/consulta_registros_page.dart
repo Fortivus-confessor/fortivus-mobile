@@ -3,6 +3,7 @@ import 'package:fortivus_app/pages/combate_incendio/aereo/responder_combate_ince
 import 'package:fortivus_app/pages/combate_incendio/maquinario/responder_combate_incendio_maquinario_page.dart';
 import 'package:fortivus_app/pages/combate_incendio/terrestre/responder_combate_terrestre_page.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/model/despacho.dart' as model;
@@ -166,16 +167,13 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
-        toolbarHeight: 100,
-        title: Column(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/logo-fortivus.png', height: 50),
-            const SizedBox(height: 4),
-            const Text('FORTIVUS', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+            Image.asset('assets/images/logo-fortivus.png', height: 34),
+            const SizedBox(width: 10),
+            const Text('Pendentes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -188,11 +186,6 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(color: TacticalTheme.primary, width: 1.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -200,9 +193,9 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.search, color: TacticalTheme.primary),
+                              const Icon(Icons.search, color: TacticalTheme.accentOrange),
                               const SizedBox(width: 8),
-                              Text('Filtros de Busca', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TacticalTheme.primary)),
+                              Text('Filtros de Busca', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.fx.textPrimary)),
                             ],
                           ),
                           const Divider(),
@@ -242,12 +235,6 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.filter_list),
                               label: const Text('Filtrar'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: TacticalTheme.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              ),
                               onPressed: _loadRegistros,
                             ),
                           ),
@@ -424,14 +411,18 @@ class _ConsultaRegistrosPageState extends State<ConsultaRegistrosPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  backgroundColor: currentPage == i ? TacticalTheme.primary : null,
-                                  side: BorderSide(color: currentPage == i ? TacticalTheme.primary : Colors.grey),
+                                  backgroundColor: currentPage == i ? TacticalTheme.accentOrange : null,
+                                  side: BorderSide(
+                                      color: currentPage == i
+                                          ? TacticalTheme.accentOrange
+                                          : context.fx.inputBorder),
+                                  minimumSize: const Size(44, 44),
                                 ),
                                 onPressed: () => _onPageChanged(i),
                                 child: Text(
                                   '${i + 1}',
                                   style: TextStyle(
-                                    color: currentPage == i ? Colors.white : Colors.black87,
+                                    color: currentPage == i ? Colors.white : context.fx.textSecondary,
                                     fontWeight: currentPage == i ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),

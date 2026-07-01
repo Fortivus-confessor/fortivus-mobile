@@ -45,11 +45,8 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
       builder: (context, state, _) {
         if (state.isLoading) {
           return Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: AppBar(
               title: const Text('Combate Aéreo', style: TextStyle(fontWeight: FontWeight.bold)),
-              backgroundColor: TacticalTheme.primary,
-              foregroundColor: Colors.white,
             ),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -58,7 +55,6 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
         return PopScope(
           canPop: !state.isLoading,
           child: Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: _buildAppBar(state),
             body: _buildBody(state, context),
           ),
@@ -70,13 +66,10 @@ class _CombateAereoViewState extends State<_CombateAereoView> {
   AppBar _buildAppBar(CombateAereoState state) {
     return AppBar(
       title: const Text('Combate Aéreo', style: TextStyle(fontWeight: FontWeight.bold)),
-      backgroundColor: TacticalTheme.primary,
-      foregroundColor: Colors.white,
-      elevation: 2,
       leading: state.isLoading
           ? const Padding(
               padding: EdgeInsets.all(14),
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(strokeWidth: 2, color: TacticalTheme.accentOrange),
             )
           : null,
     );

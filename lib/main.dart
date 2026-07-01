@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fortivus_app/util/app_restart_notifier.dart';
 import 'package:fortivus_app/services/background_service.dart';
-import 'package:fortivus_app/util/ssl_helper.dart';
-import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/app_theme.dart';
+import 'package:fortivus_app/theme/theme_controller.dart';
 import 'package:fortivus_app/services/gps_tracking_service.dart';
+
+/// Controlador global de tema (claro/escuro/sistema), carregado no boot.
+final ThemeController themeController = ThemeController.instance;
 
 void _logBootSequence() {
   if (!kDebugMode) return;
@@ -26,10 +29,9 @@ void _logBootSequence() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await SSLHelper.initialize();
 
   await EnvironmentConfig.init();
+  await themeController.load();
 
   _logBootSequence();
   
@@ -85,19 +87,26 @@ class _MyAppState extends State<MyApp> {
     return ValueListenableBuilder<Key>(
       valueListenable: appRestartNotifier,
       builder: (context, key, _) {
-        return MaterialApp(
-          key: key,
-          debugShowCheckedModeBanner: false,
-          title: AppConstants.appName,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('pt', 'BR')],
-          locale: const Locale('pt', 'BR'),
-          theme: TacticalTheme.darkTheme,
-          home: const SplashPage(),
+        return ListenableBuilder(
+          listenable: themeController,
+          builder: (context, _) {
+            return MaterialApp(
+              key: key,
+              debugShowCheckedModeBanner: false,
+              title: AppConstants.appName,
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [Locale('pt', 'BR')],
+              locale: const Locale('pt', 'BR'),
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeController.mode,
+              home: const SplashPage(),
+            );
+          },
         );
       },
     );

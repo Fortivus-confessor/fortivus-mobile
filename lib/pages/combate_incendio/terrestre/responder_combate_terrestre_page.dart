@@ -46,7 +46,6 @@ class _CombateTerrestreViewState extends State<_CombateTerrestreView> {
       builder: (context, state, _) {
         if (state.isLoading) {
           return Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: _buildAppBar(isLoading: true),
             body: const Center(child: CircularProgressIndicator()),
           );
@@ -55,7 +54,6 @@ class _CombateTerrestreViewState extends State<_CombateTerrestreView> {
         return PopScope(
           canPop: !state.isLoading,
           child: Scaffold(
-            backgroundColor: TacticalTheme.background,
             appBar: _buildAppBar(isLoading: state.isLoading),
             body: _buildFormBody(state, context),
           ),
@@ -70,16 +68,10 @@ class _CombateTerrestreViewState extends State<_CombateTerrestreView> {
         ResponderCombateTerrestrePage._pageTitle,
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      backgroundColor: TacticalTheme.primary,
-      foregroundColor: Colors.white,
-      elevation: 2,
       leading: isLoading
           ? const Padding(
               padding: EdgeInsets.all(14),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: TacticalTheme.accentOrange),
             )
           : null,
     );

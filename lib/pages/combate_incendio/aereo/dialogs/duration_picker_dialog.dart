@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 /// Dialog para seleção de duração (horas e minutos)
 /// 
@@ -31,16 +32,16 @@ Future<Duration?> showDurationPickerDialog({
         ),
         title: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.timelapse,
-              color: TacticalTheme.primary,
+              color: TacticalTheme.accentOrange,
               size: 28,
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'Tempo de Operação',
               style: TextStyle(
-                color: TacticalTheme.primary,
+                color: ctx.fx.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -56,11 +57,11 @@ Future<Duration?> showDurationPickerDialog({
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Descrição
-                  const Text(
+                  Text(
                     'Informe o tempo total da operação',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.black54,
+                      color: ctx.fx.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -81,7 +82,7 @@ Future<Duration?> showDurationPickerDialog({
                             prefixIcon: const Icon(
                               Icons.access_time,
                               size: 20,
-                              color: TacticalTheme.primary,
+                              color: TacticalTheme.accentOrange,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -117,7 +118,7 @@ Future<Duration?> showDurationPickerDialog({
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: TacticalTheme.primary,
+                            color: TacticalTheme.accentOrange,
                           ),
                         ),
                       ),
@@ -132,7 +133,7 @@ Future<Duration?> showDurationPickerDialog({
                             prefixIcon: const Icon(
                               Icons.timer,
                               size: 20,
-                              color: TacticalTheme.primary,
+                              color: TacticalTheme.accentOrange,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -198,17 +199,6 @@ Future<Duration?> showDurationPickerDialog({
             },
             icon: const Icon(Icons.check),
             label: const Text('CONFIRMAR'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TacticalTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
           ),
         ],
       );

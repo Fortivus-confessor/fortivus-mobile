@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 import 'package:fortivus_app/widgets/combate_map_widget.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -53,7 +54,7 @@ class LocalizacaoGenericoCard extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey[700],
+              color: context.fx.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -77,9 +78,9 @@ class LocalizacaoGenericoCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: context.fx.surfaceAlt,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: context.fx.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +90,7 @@ class LocalizacaoGenericoCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: context.fx.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -106,7 +107,7 @@ class LocalizacaoGenericoCard extends StatelessWidget {
                       'Selecione se a execução ocorreu conforme planejado',
                       style: TextStyle(fontSize: 11),
                     ),
-                    activeColor: TacticalTheme.primary,
+                    activeColor: TacticalTheme.accentOrange,
                     contentPadding: EdgeInsets.zero,
                   ),
                 ],

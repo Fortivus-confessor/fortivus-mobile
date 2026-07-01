@@ -8,6 +8,7 @@ import 'package:fortivus_app/pages/combate_incendio/terrestre/visualizar_combate
 import '../services/local_db_service.dart';
 import 'login_page.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 class ConsultaRegistrosEncerradosPage extends StatefulWidget {
   const ConsultaRegistrosEncerradosPage({super.key});
@@ -139,16 +140,13 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
-        toolbarHeight: 100,
-        title: Column(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/logo-fortivus.png', height: 50),
-            const SizedBox(height: 4),
-            const Text('HISTÓRICO', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+            Image.asset('assets/images/logo-fortivus.png', height: 34),
+            const SizedBox(width: 10),
+            const Text('Histórico', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -159,11 +157,6 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: TacticalTheme.primary, width: 1.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -171,9 +164,9 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.search, color: TacticalTheme.primary),
+                          const Icon(Icons.search, color: TacticalTheme.accentOrange),
                           const SizedBox(width: 8),
-                          Text('Filtros de Busca', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TacticalTheme.primary)),
+                          Text('Filtros de Busca', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.fx.textPrimary)),
                         ],
                       ),
                       const Divider(),
@@ -213,12 +206,6 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.filter_list),
                           label: const Text('Filtrar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: TacticalTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
                           onPressed: _loadRegistros,
                         ),
                       ),

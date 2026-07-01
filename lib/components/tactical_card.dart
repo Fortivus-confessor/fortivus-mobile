@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 class TacticalCard extends StatelessWidget {
   final String title;
@@ -31,10 +32,10 @@ class TacticalCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: TacticalTheme.primary,
+                      color: context.fx.textPrimary,
                     ),
                   ),
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 
 class AnexoUnicoCard extends StatefulWidget {
   final XFile? arquivoSelecionado;
@@ -197,8 +198,8 @@ class _AnexoUnicoCardState extends State<AnexoUnicoCard> {
                             onPressed: _capturarFotoCamera,
                             icon: Icons.camera_alt,
                             label: 'Câmera',
-                            color: Colors.grey.shade200,
-                            textColor: Colors.black87,
+                            color: context.fx.surfaceAlt,
+                            textColor: context.fx.textPrimary,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -207,8 +208,8 @@ class _AnexoUnicoCardState extends State<AnexoUnicoCard> {
                             onPressed: _selecionarDaGaleria,
                             icon: Icons.photo_library,
                             label: 'Galeria',
-                            color: Colors.grey.shade200,
-                            textColor: Colors.black87,
+                            color: context.fx.surfaceAlt,
+                            textColor: context.fx.textPrimary,
                           ),
                         ),
                       ],
@@ -220,8 +221,8 @@ class _AnexoUnicoCardState extends State<AnexoUnicoCard> {
                         onPressed: _selecionarArquivoDocumento,
                         icon: Icons.folder_open,
                         label: 'Selecionar Arquivo',
-                        color: TacticalTheme.primary.withValues(alpha: 0.1),
-                        textColor: TacticalTheme.primary,
+                        color: TacticalTheme.accentOrange.withValues(alpha: 0.12),
+                        textColor: TacticalTheme.accentOrange,
                       ),
                     ),
                   ],
@@ -285,9 +286,9 @@ class _AnexoUnicoCardState extends State<AnexoUnicoCard> {
       width: double.infinity,
       height: 180,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: context.fx.surfaceAlt,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: TacticalTheme.primary.withValues(alpha: 0.5), width: 2),
+        border: Border.all(color: TacticalTheme.accentOrange.withValues(alpha: 0.5), width: 2),
         image: isImg
             ? DecorationImage(
                 image: FileImage(fileObj),

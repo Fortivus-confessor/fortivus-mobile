@@ -1,4 +1,4 @@
-import 'package:fortivus_app/theme/tactical_theme.dart';
+import 'package:fortivus_app/theme/fortivus_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/model/despacho.dart' as model;
 import '../util/map_launcher_util.dart';
@@ -21,8 +21,6 @@ class DetalhesRegistroPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Despacho: ${despacho.id}'),
-        backgroundColor: TacticalTheme.primary,
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -49,7 +47,7 @@ class DetalhesRegistroPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: context.fx.surfaceAlt,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(despacho.descricaoTarefa!, style: const TextStyle(height: 1.5)),
@@ -88,25 +86,24 @@ class DetalhesRegistroPage extends StatelessWidget {
   }
 
   Widget _buildSection(String title, List<Widget> children) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: TacticalTheme.primary, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: TacticalTheme.primary)),
-            const Divider(),
-            const SizedBox(height: 8),
-            ...children,
-          ],
+    return Builder(builder: (context) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold, color: context.fx.textPrimary)),
+              const Divider(),
+              const SizedBox(height: 8),
+              ...children,
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildInfoRow(String label, String? value) {
