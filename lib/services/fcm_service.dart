@@ -44,9 +44,7 @@ class FcmService {
       
       if (fcmToken != null) {
         debugPrint('[FCM] 🎫 Token obtido com sucesso: ${fcmToken.substring(0, 15)}...');
-        // Salva no log completo se estiver em debug para conferência manual se necessário
-        if (kDebugMode) debugPrint('[FCM] TOKEN COMPLETO: $fcmToken');
-        
+
         await _sendTokenToBackend(fcmToken);
       } else {
         debugPrint('[FCM] ⚠️ Falha crítica: O Google retornou um token NULO.');

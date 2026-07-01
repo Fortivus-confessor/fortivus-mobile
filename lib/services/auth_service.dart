@@ -128,11 +128,6 @@ class AuthService {
         tipoSanguineo: driftUser.tipoSanguineo,
         centroComandoId: driftUser.centroComandoId,
         equipeId: driftUser.equipeId,
-        token: driftUser.token,
-        expiracaoToken: driftUser.expiracaoToken != null
-            ? DateTime.tryParse(driftUser.expiracaoToken!)
-            : null,
-        hashedPassword: driftUser.hashedPassword,
       );
 
       // 2. Autenticação validada! Configura a sessão local.

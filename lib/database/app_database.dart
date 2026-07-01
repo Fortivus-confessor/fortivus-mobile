@@ -1,5 +1,12 @@
+import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:drift_sqflite/drift_sqflite.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart' show getDatabasesPath;
+import 'package:sqlite3/open.dart';
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'db_encryption.dart';
 
 part 'app_database.g.dart';
 
@@ -92,7 +99,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -104,8 +111,18 @@ class AppDatabase extends _$AppDatabase {
             // Migração de sqflite manual (v1-v3) para Drift (v4).
             // Dados antigos descartados — o app re-sincroniza do servidor.
             await m.createAll();
-          } else if (from < 5) {
+            return;
+          }
+          if (from < 5) {
             await m.addColumn(evidencias, evidencias.tentativas);
+          }
+          if (from < 6) {
+            // Correção de segurança: versões anteriores gravavam o access token do
+            // Keycloak (e um campo de hash de senha nunca usado) em texto puro nesta
+            // tabela. O token já vive protegido no FlutterSecureStorage — aqui é só
+            // limpar qualquer cópia que já tenha sido persistida por engano.
+            await customStatement(
+                'UPDATE users SET token = NULL, expiracao_token = NULL, hashed_password = NULL');
           }
         },
         beforeOpen: (details) async {
@@ -287,11 +304,47 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-// ─── CONNECTION ──────────────────────────────────────────────────────────────
+// ─── CONNECTION (SQLCipher / criptografada) ────────────────────────────────────
 
 QueryExecutor _openConnection() {
-  return SqfliteQueryExecutor.inDatabaseFolder(
-    path: 'fortivus_v4.db',
-    logStatements: false,
-  );
+  return LazyDatabase(() async {
+    // Carrega a biblioteca SQLCipher em vez do SQLite padrão do sistema.
+    if (Platform.isAndroid) {
+      await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
+      open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
+    }
+
+    final docsDir = await getApplicationDocumentsDirectory();
+    final encryptedFile = File(p.join(docsDir.path, 'fortivus_secure.db'));
+    final key = await DbEncryption.getOrCreateKey();
+
+    // Migração única: remove o banco legado em texto puro (não criptografado).
+    // Os dados de leitura (despachos) re-sincronizam do servidor; respostas
+    // ainda não enviadas são raras no momento do upgrade e o banco é a nova
+    // fonte da verdade daqui em diante.
+    if (!encryptedFile.existsSync()) {
+      try {
+        final legacy = File(p.join(await getDatabasesPath(), 'fortivus_v4.db'));
+        if (legacy.existsSync()) {
+          legacy.deleteSync();
+        }
+      } catch (_) {
+        // Falha ao localizar/remover o legado não deve impedir a inicialização.
+      }
+    }
+
+    return NativeDatabase(
+      encryptedFile,
+      setup: (rawDb) {
+        // Chave em formato raw (x'...') pula a derivação PBKDF2 — a chave já é
+        // aleatória de 256 bits, então KDF sobre ela não agrega segurança.
+        rawDb.execute('PRAGMA key = "x\'$key\'";');
+        final cipher = rawDb.select('PRAGMA cipher_version;');
+        if (cipher.isEmpty) {
+          throw StateError('SQLCipher indisponível: biblioteca não carregada.');
+        }
+        rawDb.execute('PRAGMA foreign_keys = ON;');
+      },
+    );
+  });
 }

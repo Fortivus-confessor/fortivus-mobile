@@ -29,8 +29,9 @@ dependencies:
   open_filex: ^4.5.0
   shared_preferences: ^2.5.2
   drift: ^2.22.0
-  drift_sqflite: ^2.0.1
-  sqlite3_flutter_libs: ^0.5.0
+  sqlite3: ^2.4.0
+  sqlcipher_flutter_libs: ^0.6.0
+  sqflite: ^2.3.0
   url_launcher: ^6.3.2
   bcrypt: ^1.1.3
   workmanager: ^0.9.0+3 
@@ -61,11 +62,10 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/fortivus512x512.png"
+  image_path: "assets/icon/icone_fortivus_oficial.png"
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/images/
-    - assets/ca/

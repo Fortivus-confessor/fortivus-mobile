@@ -16,6 +16,10 @@ class LocalDbService {
     return _db.getFirstUser();
   }
 
+  // Nunca persiste token/expiracaoToken/hashedPassword aqui: o SQLite local não é
+  // criptografado, e o token de sessão já vive protegido no FlutterSecureStorage
+  // (Android Keystore/iOS Keychain). Gravar segredos aqui duplicaria a superfície
+  // de exposição em caso de extração forense do arquivo do banco.
   Future<void> saveUser(Map<String, dynamic> data) async {
     await _db.upsertUser(UsersCompanion(
       id: Value(data['id'] as String? ?? data['sub'] as String),
@@ -32,9 +36,6 @@ class LocalDbService {
       tipoSanguineo: Value(data['tipoSanguineo'] as String?),
       centroComandoId: Value(data['centroComandoId'] as String?),
       equipeId: Value(data['equipeId'] as String?),
-      token: Value(data['token'] as String?),
-      expiracaoToken: Value(data['expiracaoToken'] as String?),
-      hashedPassword: Value(data['hashedPassword'] as String?),
     ));
   }
 

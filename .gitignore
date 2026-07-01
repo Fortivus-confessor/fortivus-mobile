@@ -3,6 +3,20 @@
 *.log
 .DS_Store
 
+# Segredos e credenciais (nunca versionar)
+*.env
+.env
+.env.*
+**/*.jks
+**/*.keystore
+**/key.properties
+**/keystore.properties
+**/*.p12
+**/*.p8
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+lib/**/secrets.dart
+
 # IntelliJ related
 *.iml
 *.ipr
