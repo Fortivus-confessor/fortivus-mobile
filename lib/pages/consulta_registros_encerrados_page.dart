@@ -1,4 +1,3 @@
-import 'package:fortivus_app/config/environment_config.dart';
 import 'package:fortivus_app/pages/combate_incendio/aereo/visualizar_combate_aereo_page.dart';
 import 'package:fortivus_app/pages/combate_incendio/maquinario/visualizar_combate_incendio_maquinario_page.dart';
 import 'package:flutter/material.dart';
@@ -140,7 +139,7 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: EnvironmentConfig.isHomologacao ? Colors.deepPurple.shade900 : Colors.black,
+        backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
         toolbarHeight: 100,
@@ -150,13 +149,6 @@ class _ConsultaRegistrosEncerradosPageState extends State<ConsultaRegistrosEncer
             Image.asset('assets/images/logo-fortivus.png', height: 50),
             const SizedBox(height: 4),
             const Text('HISTÓRICO', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
-            if (EnvironmentConfig.isHomologacao)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(4)),
-                child: const Text('HOMOLOGAÇÃO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              ),
           ],
         ),
       ),

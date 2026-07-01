@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'package:fortivus_app/config/environment_config.dart';
 import 'package:fortivus_app/services/fcm_service.dart';
-import 'package:fortivus_app/util/ambiente_util.dart';
 import 'package:flutter/material.dart';
 import 'package:fortivus_app/pages/consulta_registros_page.dart';
 import 'package:fortivus_app/pages/consulta_registros_encerrados_page.dart';
 import 'package:fortivus_app/services/registro_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -21,7 +18,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int pendentesCount = 0;
   int encerradosCount = 0;
-  bool _podeTrocarAmbiente = false;
   final RegistroService _registroService = RegistroService();
   bool _isLoading = false;
   Timer? _refreshTimer;
@@ -36,7 +32,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _verificarPermissaoAmbiente();
     WidgetsBinding.instance.addPostFrameCallback((_) {
        FcmService().registerDevice();
        _verificarOtimizacaoBateria();
@@ -171,46 +166,6 @@ class _HomePageState extends State<HomePage> {
         ),
         (Route<dynamic> route) => false,
       );
-    }
-  }
-
-  Future<void> _verificarPermissaoAmbiente() async {
-    if (EnvironmentConfig.isHomologacao) {
-      setState(() => _podeTrocarAmbiente = true);
-      return;
-    }
-
-    final token = await _authService.getAccessToken();
-    if (token == null) return;
-
-    try {
-      Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
-      List<dynamic> realmRoles = decodedToken['realm_access']?['roles'] ?? [];
-      List<dynamic> clientRoles = [];
-      if (decodedToken['resource_access'] != null) {
-        Map<String, dynamic> resourceAccess = decodedToken['resource_access'];
-        resourceAccess.forEach((clientName, clientData) {
-          if (clientData['roles'] != null) {
-            clientRoles.addAll(clientData['roles']);
-          }
-        });
-      }
-
-      List<dynamic> todasAsRoles = [...realmRoles, ...clientRoles];
-      debugPrint('[HomePage-Debug] Todas as Roles encontradas: $todasAsRoles');
-      
-      if (todasAsRoles.contains('ROLE_SALA_SITUACAO_CENTRAL') || 
-          todasAsRoles.contains('SALA_SITUACAO_CENTRAL') ||
-          todasAsRoles.contains('ROLE_ADMIN') || 
-          todasAsRoles.contains('ADMIN')) {
-        
-        debugPrint('[HomePage-Debug] Permissão CONCEDIDA!');
-        if (mounted) setState(() => _podeTrocarAmbiente = true);
-      } else {
-        debugPrint('[HomePage-Debug] Permissão NEGADA.');
-      }
-    } catch (e) {
-      debugPrint('[HomePage-Debug] Erro ao ler token para ambiente: $e');
     }
   }
 
@@ -402,32 +357,16 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: EnvironmentConfig.isHomologacao ? Colors.deepPurple.shade900 : Colors.black,
+        backgroundColor: Colors.black,
         centerTitle: true,
         toolbarHeight: 100,
-        title: GestureDetector(
-          onLongPress: () {
-            if (_podeTrocarAmbiente) {
-              AmbienteUtil.mostrarDialogoTroca(context);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sem permissão')));
-            }
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min, 
-            children: [
-              Image.asset('assets/images/logo-fortivus.png', height: 50), 
-              const SizedBox(height: 4), 
-              const Text('FORTIVUS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), 
-              if (EnvironmentConfig.isHomologacao) 
-                Container(
-                  margin: const EdgeInsets.only(top: 4), 
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), 
-                  decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(4)), 
-                  child: const Text('HOMOLOGAÇÃO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5))
-                )
-            ]
-          ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/logo-fortivus.png', height: 50),
+            const SizedBox(height: 4),
+            const Text('FORTIVUS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
         ),
         actions: [IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: _logout)],
       ),

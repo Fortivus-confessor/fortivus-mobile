@@ -9,6 +9,7 @@ import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/model/relatorio_maquinario.dart';
 import 'package:fortivus_app/services/responder/responder_maquinario_service.dart';
 import 'package:fortivus_app/services/attachment_upload_service.dart';
+import 'package:fortivus_app/validation/report_validator.dart';
 
 class CombateMaquinarioState extends ChangeNotifier {
   static const String categoria = 'MAQUINARIO';
@@ -232,6 +233,8 @@ class CombateMaquinarioState extends ChangeNotifier {
   Future<String?> salvar() async {
     if (_salvando) return 'Salvamento já em andamento.';
     if (!validarFormulario()) return 'Preencha os campos obrigatórios e a localização.';
+    final erroValidacao = MaquinarioValidator().firstError(this);
+    if (erroValidacao != null) return erroValidacao;
     _salvando = true;
     _setLoading(true);
     bool sucesso = false;

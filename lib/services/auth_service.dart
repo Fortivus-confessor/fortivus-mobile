@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:bcrypt/bcrypt.dart';
 import 'local_db_service.dart';
 import 'registro_service.dart';
+import '../database/app_database.dart' as db;
 import '../model/user.dart';
 import '../config/keycloak_config.dart';
 import '../config/environment_config.dart';
@@ -102,14 +103,37 @@ class AuthService {
       }
 
       // 2. Busca o usuário local pelo identificador (email ou matrícula)
-      final user = await LocalDbService.instance.authenticateUserOffline(identifier, password);
+      final db.User? driftUser = await LocalDbService.instance.authenticateUserOffline(identifier, password);
 
-      if (user == null) {
+      if (driftUser == null) {
         if (kDebugMode) {
           debugPrint('[AuthService] ❌ Credenciais inválidas ou usuário não encontrado.');
         }
         return null;
       }
+
+      // Mapeia a linha do Drift (armazenamento local) para o modelo de domínio usado pelo resto do app.
+      final user = User(
+        id: driftUser.id,
+        sub: driftUser.sub,
+        nome: driftUser.nome,
+        primeiroNome: driftUser.primeiroNome,
+        email: driftUser.email,
+        matricula: driftUser.matricula,
+        cpf: driftUser.cpf,
+        posto: driftUser.posto,
+        perfil: driftUser.perfil,
+        estadoOperacional: driftUser.estadoOperacional,
+        fotoUrl: driftUser.fotoUrl,
+        tipoSanguineo: driftUser.tipoSanguineo,
+        centroComandoId: driftUser.centroComandoId,
+        equipeId: driftUser.equipeId,
+        token: driftUser.token,
+        expiracaoToken: driftUser.expiracaoToken != null
+            ? DateTime.tryParse(driftUser.expiracaoToken!)
+            : null,
+        hashedPassword: driftUser.hashedPassword,
+      );
 
       // 2. Autenticação validada! Configura a sessão local.
       final prefs = await SharedPreferences.getInstance();

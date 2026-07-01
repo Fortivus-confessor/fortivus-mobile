@@ -188,6 +188,9 @@ class LocalDbService {
   Future<void> updateEvidenciaStatus(int id, String status) =>
       _db.updateEvidenciaStatus(id, status);
 
+  Future<void> registrarFalhaEvidencia(int id, {required int maxTentativas}) =>
+      _db.registrarFalhaEvidencia(id, maxTentativas: maxTentativas);
+
   // ─── OUTBOX ──────────────────────────────────────────────────────────────
 
   Future<List<OutboxTableData>> getPendingOutbox() => _db.getPendingOutbox();

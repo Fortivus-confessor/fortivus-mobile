@@ -27,8 +27,7 @@ class AttachmentUploadService {
   Future<void> _uploadOnline(
       int despachoId, List<XFile> arquivos, String entityType) async {
     final token = await AuthService().getAccessToken();
-    final uri =
-        Uri.parse('${EnvironmentConfig.apiBaseUrl}/v1/attachments/upload');
+    final uri = Uri.parse('${EnvironmentConfig.attachmentsBaseUrl}/upload');
 
     for (final xfile in arquivos) {
       final file = File(xfile.path);

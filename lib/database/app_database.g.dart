@@ -1960,6 +1960,14 @@ class $EvidenciasTable extends Evidencias
           type: DriftSqlType.string,
           requiredDuringInsert: false,
           defaultValue: const Constant('PENDENTE'));
+  static const VerificationMeta _tentativasMeta =
+      const VerificationMeta('tentativas');
+  @override
+  late final GeneratedColumn<int> tentativas = GeneratedColumn<int>(
+      'tentativas', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1969,7 +1977,8 @@ class $EvidenciasTable extends Evidencias
         latitude,
         longitude,
         dataCaptura,
-        statusSincronizacao
+        statusSincronizacao,
+        tentativas
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2026,6 +2035,12 @@ class $EvidenciasTable extends Evidencias
           statusSincronizacao.isAcceptableOrUnknown(
               data['status_sincronizacao']!, _statusSincronizacaoMeta));
     }
+    if (data.containsKey('tentativas')) {
+      context.handle(
+          _tentativasMeta,
+          tentativas.isAcceptableOrUnknown(
+              data['tentativas']!, _tentativasMeta));
+    }
     return context;
   }
 
@@ -2051,6 +2066,8 @@ class $EvidenciasTable extends Evidencias
           .read(DriftSqlType.string, data['${effectivePrefix}data_captura'])!,
       statusSincronizacao: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}status_sincronizacao'])!,
+      tentativas: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}tentativas'])!,
     );
   }
 
@@ -2069,6 +2086,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
   final double? longitude;
   final String dataCaptura;
   final String statusSincronizacao;
+  final int tentativas;
   const Evidencia(
       {required this.id,
       required this.despachoId,
@@ -2077,7 +2095,8 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
       this.latitude,
       this.longitude,
       required this.dataCaptura,
-      required this.statusSincronizacao});
+      required this.statusSincronizacao,
+      required this.tentativas});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2093,6 +2112,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
     }
     map['data_captura'] = Variable<String>(dataCaptura);
     map['status_sincronizacao'] = Variable<String>(statusSincronizacao);
+    map['tentativas'] = Variable<int>(tentativas);
     return map;
   }
 
@@ -2110,6 +2130,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
           : Value(longitude),
       dataCaptura: Value(dataCaptura),
       statusSincronizacao: Value(statusSincronizacao),
+      tentativas: Value(tentativas),
     );
   }
 
@@ -2126,6 +2147,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
       dataCaptura: serializer.fromJson<String>(json['dataCaptura']),
       statusSincronizacao:
           serializer.fromJson<String>(json['statusSincronizacao']),
+      tentativas: serializer.fromJson<int>(json['tentativas']),
     );
   }
   @override
@@ -2140,6 +2162,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
       'longitude': serializer.toJson<double?>(longitude),
       'dataCaptura': serializer.toJson<String>(dataCaptura),
       'statusSincronizacao': serializer.toJson<String>(statusSincronizacao),
+      'tentativas': serializer.toJson<int>(tentativas),
     };
   }
 
@@ -2151,7 +2174,8 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
           Value<double?> latitude = const Value.absent(),
           Value<double?> longitude = const Value.absent(),
           String? dataCaptura,
-          String? statusSincronizacao}) =>
+          String? statusSincronizacao,
+          int? tentativas}) =>
       Evidencia(
         id: id ?? this.id,
         despachoId: despachoId ?? this.despachoId,
@@ -2161,6 +2185,7 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
         longitude: longitude.present ? longitude.value : this.longitude,
         dataCaptura: dataCaptura ?? this.dataCaptura,
         statusSincronizacao: statusSincronizacao ?? this.statusSincronizacao,
+        tentativas: tentativas ?? this.tentativas,
       );
   Evidencia copyWithCompanion(EvidenciasCompanion data) {
     return Evidencia(
@@ -2176,6 +2201,8 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
       statusSincronizacao: data.statusSincronizacao.present
           ? data.statusSincronizacao.value
           : this.statusSincronizacao,
+      tentativas:
+          data.tentativas.present ? data.tentativas.value : this.tentativas,
     );
   }
 
@@ -2189,14 +2216,15 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('dataCaptura: $dataCaptura, ')
-          ..write('statusSincronizacao: $statusSincronizacao')
+          ..write('statusSincronizacao: $statusSincronizacao, ')
+          ..write('tentativas: $tentativas')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, despachoId, filePath, tipo, latitude,
-      longitude, dataCaptura, statusSincronizacao);
+      longitude, dataCaptura, statusSincronizacao, tentativas);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2208,7 +2236,8 @@ class Evidencia extends DataClass implements Insertable<Evidencia> {
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.dataCaptura == this.dataCaptura &&
-          other.statusSincronizacao == this.statusSincronizacao);
+          other.statusSincronizacao == this.statusSincronizacao &&
+          other.tentativas == this.tentativas);
 }
 
 class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
@@ -2220,6 +2249,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
   final Value<double?> longitude;
   final Value<String> dataCaptura;
   final Value<String> statusSincronizacao;
+  final Value<int> tentativas;
   const EvidenciasCompanion({
     this.id = const Value.absent(),
     this.despachoId = const Value.absent(),
@@ -2229,6 +2259,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
     this.longitude = const Value.absent(),
     this.dataCaptura = const Value.absent(),
     this.statusSincronizacao = const Value.absent(),
+    this.tentativas = const Value.absent(),
   });
   EvidenciasCompanion.insert({
     this.id = const Value.absent(),
@@ -2239,6 +2270,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
     this.longitude = const Value.absent(),
     required String dataCaptura,
     this.statusSincronizacao = const Value.absent(),
+    this.tentativas = const Value.absent(),
   })  : despachoId = Value(despachoId),
         filePath = Value(filePath),
         tipo = Value(tipo),
@@ -2252,6 +2284,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
     Expression<double>? longitude,
     Expression<String>? dataCaptura,
     Expression<String>? statusSincronizacao,
+    Expression<int>? tentativas,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2263,6 +2296,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
       if (dataCaptura != null) 'data_captura': dataCaptura,
       if (statusSincronizacao != null)
         'status_sincronizacao': statusSincronizacao,
+      if (tentativas != null) 'tentativas': tentativas,
     });
   }
 
@@ -2274,7 +2308,8 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
       Value<double?>? latitude,
       Value<double?>? longitude,
       Value<String>? dataCaptura,
-      Value<String>? statusSincronizacao}) {
+      Value<String>? statusSincronizacao,
+      Value<int>? tentativas}) {
     return EvidenciasCompanion(
       id: id ?? this.id,
       despachoId: despachoId ?? this.despachoId,
@@ -2284,6 +2319,7 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
       longitude: longitude ?? this.longitude,
       dataCaptura: dataCaptura ?? this.dataCaptura,
       statusSincronizacao: statusSincronizacao ?? this.statusSincronizacao,
+      tentativas: tentativas ?? this.tentativas,
     );
   }
 
@@ -2314,6 +2350,9 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
     if (statusSincronizacao.present) {
       map['status_sincronizacao'] = Variable<String>(statusSincronizacao.value);
     }
+    if (tentativas.present) {
+      map['tentativas'] = Variable<int>(tentativas.value);
+    }
     return map;
   }
 
@@ -2327,7 +2366,8 @@ class EvidenciasCompanion extends UpdateCompanion<Evidencia> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('dataCaptura: $dataCaptura, ')
-          ..write('statusSincronizacao: $statusSincronizacao')
+          ..write('statusSincronizacao: $statusSincronizacao, ')
+          ..write('tentativas: $tentativas')
           ..write(')'))
         .toString();
   }
@@ -3626,6 +3666,7 @@ typedef $$EvidenciasTableCreateCompanionBuilder = EvidenciasCompanion Function({
   Value<double?> longitude,
   required String dataCaptura,
   Value<String> statusSincronizacao,
+  Value<int> tentativas,
 });
 typedef $$EvidenciasTableUpdateCompanionBuilder = EvidenciasCompanion Function({
   Value<int> id,
@@ -3636,6 +3677,7 @@ typedef $$EvidenciasTableUpdateCompanionBuilder = EvidenciasCompanion Function({
   Value<double?> longitude,
   Value<String> dataCaptura,
   Value<String> statusSincronizacao,
+  Value<int> tentativas,
 });
 
 class $$EvidenciasTableFilterComposer
@@ -3671,6 +3713,9 @@ class $$EvidenciasTableFilterComposer
   ColumnFilters<String> get statusSincronizacao => $composableBuilder(
       column: $table.statusSincronizacao,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get tentativas => $composableBuilder(
+      column: $table.tentativas, builder: (column) => ColumnFilters(column));
 }
 
 class $$EvidenciasTableOrderingComposer
@@ -3706,6 +3751,9 @@ class $$EvidenciasTableOrderingComposer
   ColumnOrderings<String> get statusSincronizacao => $composableBuilder(
       column: $table.statusSincronizacao,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get tentativas => $composableBuilder(
+      column: $table.tentativas, builder: (column) => ColumnOrderings(column));
 }
 
 class $$EvidenciasTableAnnotationComposer
@@ -3740,6 +3788,9 @@ class $$EvidenciasTableAnnotationComposer
 
   GeneratedColumn<String> get statusSincronizacao => $composableBuilder(
       column: $table.statusSincronizacao, builder: (column) => column);
+
+  GeneratedColumn<int> get tentativas => $composableBuilder(
+      column: $table.tentativas, builder: (column) => column);
 }
 
 class $$EvidenciasTableTableManager extends RootTableManager<
@@ -3773,6 +3824,7 @@ class $$EvidenciasTableTableManager extends RootTableManager<
             Value<double?> longitude = const Value.absent(),
             Value<String> dataCaptura = const Value.absent(),
             Value<String> statusSincronizacao = const Value.absent(),
+            Value<int> tentativas = const Value.absent(),
           }) =>
               EvidenciasCompanion(
             id: id,
@@ -3783,6 +3835,7 @@ class $$EvidenciasTableTableManager extends RootTableManager<
             longitude: longitude,
             dataCaptura: dataCaptura,
             statusSincronizacao: statusSincronizacao,
+            tentativas: tentativas,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -3793,6 +3846,7 @@ class $$EvidenciasTableTableManager extends RootTableManager<
             Value<double?> longitude = const Value.absent(),
             required String dataCaptura,
             Value<String> statusSincronizacao = const Value.absent(),
+            Value<int> tentativas = const Value.absent(),
           }) =>
               EvidenciasCompanion.insert(
             id: id,
@@ -3803,6 +3857,7 @@ class $$EvidenciasTableTableManager extends RootTableManager<
             longitude: longitude,
             dataCaptura: dataCaptura,
             statusSincronizacao: statusSincronizacao,
+            tentativas: tentativas,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

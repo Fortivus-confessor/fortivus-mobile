@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:fortivus_app/services/local_db_service.dart';
+import 'package:fortivus_app/database/app_database.dart';
+import 'package:fortivus_app/database/database_provider.dart';
 import 'package:fortivus_app/config/environment_config.dart';
 import 'dart:convert';
-import 'dart:isolate';
 
 // O isolado do Foreground Task
 @pragma('vm:entry-point')
@@ -17,9 +17,9 @@ class GpsTaskHandler extends TaskHandler {
   StreamSubscription<Position>? _positionStream;
 
   @override
-  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('[GpsTracking] Serviço em foreground iniciado');
-    
+
     // Configuração do fluxo de localização
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
@@ -30,10 +30,10 @@ class GpsTaskHandler extends TaskHandler {
         .listen((Position? position) async {
       if (position != null) {
         debugPrint('[GpsTracking] Nova localização: ${position.latitude}, ${position.longitude}');
-        
+
         // Salva na Outbox para sincronização
         try {
-          final db = await LocalDbService.database;
+          final db = DatabaseProvider.instance.database;
           final payload = jsonEncode({
             'latitude': position.latitude,
             'longitude': position.longitude,
@@ -42,14 +42,13 @@ class GpsTaskHandler extends TaskHandler {
             'heading': position.heading,
           });
 
-          await db.insert('outbox_table', {
-            'metodo': 'POST',
-            'endpoint': '${EnvironmentConfig.apiBaseUrl}/tracking/location',
-            'payload': payload,
-            'dataCriacao': DateTime.now().toIso8601String(),
-            'status': 'PENDENTE'
-          });
-          
+          await db.insertOutbox(OutboxTableCompanion.insert(
+            metodo: 'POST',
+            endpoint: '${EnvironmentConfig.apiBaseUrl}/tracking/location',
+            payload: payload,
+            dataCriacao: DateTime.now().toIso8601String(),
+          ));
+
           FlutterForegroundTask.updateService(
             notificationTitle: 'Fortivus Rastreamento Ativo',
             notificationText: 'Última coord: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
@@ -62,18 +61,18 @@ class GpsTaskHandler extends TaskHandler {
   }
 
   @override
-  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
-    // Evento periódico (opcional)
+  void onRepeatEvent(DateTime timestamp) {
+    // Não utilizado — o rastreamento é orientado pelo stream de posição, não por intervalo fixo.
   }
 
   @override
-  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
     await _positionStream?.cancel();
     debugPrint('[GpsTracking] Serviço em foreground encerrado');
   }
 
   @override
-  void onButtonPressed(String id) {
+  void onNotificationButtonPressed(String id) {
     debugPrint('[GpsTracking] Botão da notificação pressionado: $id');
   }
 
@@ -87,25 +86,18 @@ class GpsTrackingService {
   static Future<void> initForegroundTask() async {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
-        id: 500,
         channelId: 'fortivus_tracking_channel',
         channelName: 'Rastreamento Tático',
         channelDescription: 'Esta notificação mantem o envio do GPS em segundo plano.',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
-        iconData: const NotificationIconData(
-          resType: ResourceType.mipmap,
-          resPrefix: ResourcePrefix.ic,
-          name: 'launcher',
-        ),
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,
         playSound: false,
       ),
-      foregroundTaskOptions: const ForegroundTaskOptions(
-        interval: 5000,
-        isOnceEvent: false,
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
         autoRunOnBoot: true,
         allowWakeLock: true,
         allowWifiLock: true,
@@ -138,6 +130,7 @@ class GpsTrackingService {
     }
 
     await FlutterForegroundTask.startService(
+      serviceId: 500,
       notificationTitle: 'Fortivus Rastreamento Ativo',
       notificationText: 'Capturando coordenadas em tempo real...',
       callback: startCallback,

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 class OutboxSyncService {
   static const int _maxTentativas = 3;
+  static const int _maxTentativasEvidencia = 5;
 
   static Future<void> syncOutbox() async {
     final token = await AuthService().getAccessToken();
@@ -78,7 +79,7 @@ class OutboxSyncService {
         }
 
         try {
-          final uri = Uri.parse('${EnvironmentConfig.apiBaseUrl}/v1/attachments/upload');
+          final uri = Uri.parse('${EnvironmentConfig.attachmentsBaseUrl}/upload');
           final request = http.MultipartRequest('POST', uri)
             ..headers['Authorization'] = 'Bearer $token'
             ..fields['despachoId'] = ev.despachoId.toString()
@@ -88,13 +89,16 @@ class OutboxSyncService {
           final streamed = await request.send().timeout(const Duration(seconds: 60));
           final success = streamed.statusCode >= 200 && streamed.statusCode < 300;
 
-          await LocalDbService.instance.updateEvidenciaStatus(
-            ev.id,
-            success ? 'SINCRONIZADO' : 'ERRO',
-          );
+          if (success) {
+            await LocalDbService.instance.updateEvidenciaStatus(ev.id, 'SINCRONIZADO');
+          } else {
+            await LocalDbService.instance
+                .registrarFalhaEvidencia(ev.id, maxTentativas: _maxTentativasEvidencia);
+          }
         } catch (e) {
           debugPrint('[OutboxSync] Erro ao enviar evidência ${ev.id}: $e');
-          await LocalDbService.instance.updateEvidenciaStatus(ev.id, 'ERRO');
+          await LocalDbService.instance
+              .registrarFalhaEvidencia(ev.id, maxTentativas: _maxTentativasEvidencia);
         }
       }
     } catch (e) {

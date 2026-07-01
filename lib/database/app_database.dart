@@ -70,6 +70,7 @@ class Evidencias extends Table {
   TextColumn get dataCaptura => text()(); // ISO 8601
   TextColumn get statusSincronizacao =>
       text().withDefault(const Constant('PENDENTE'))();
+  IntColumn get tentativas => integer().withDefault(const Constant(0))();
 }
 
 class OutboxTable extends Table {
@@ -91,7 +92,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +104,8 @@ class AppDatabase extends _$AppDatabase {
             // Migração de sqflite manual (v1-v3) para Drift (v4).
             // Dados antigos descartados — o app re-sincroniza do servidor.
             await m.createAll();
+          } else if (from < 5) {
+            await m.addColumn(evidencias, evidencias.tentativas);
           }
         },
         beforeOpen: (details) async {
@@ -240,6 +243,22 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateEvidenciaStatus(int id, String status) =>
       (update(evidencias)..where((e) => e.id.equals(id)))
           .write(EvidenciasCompanion(statusSincronizacao: Value(status)));
+
+  /// Incrementa o contador de tentativas; só marca 'ERRO' definitivo ao atingir [maxTentativas],
+  /// mantendo 'PENDENTE' (retentável no próximo ciclo) enquanto isso.
+  Future<void> registrarFalhaEvidencia(int id, {required int maxTentativas}) async {
+    final item = await (select(evidencias)..where((e) => e.id.equals(id)))
+        .getSingleOrNull();
+    if (item == null) return;
+
+    final novasTentativas = item.tentativas + 1;
+    await (update(evidencias)..where((e) => e.id.equals(id))).write(
+      EvidenciasCompanion(
+        tentativas: Value(novasTentativas),
+        statusSincronizacao: Value(novasTentativas >= maxTentativas ? 'ERRO' : 'PENDENTE'),
+      ),
+    );
+  }
 
   // ─── OUTBOX ──────────────────────────────────────────────────────────────
 

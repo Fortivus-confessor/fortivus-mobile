@@ -10,6 +10,7 @@ import 'package:fortivus_app/model/relatorio_terrestre.dart';
 import 'package:fortivus_app/model/propriedade_apoio.dart';
 import 'package:fortivus_app/services/responder/responder_terrestre_service.dart';
 import 'package:fortivus_app/services/attachment_upload_service.dart';
+import 'package:fortivus_app/validation/report_validator.dart';
 
 class CombateTerrestreState extends ChangeNotifier {
   static const String categoria = 'TERRESTRE';
@@ -231,6 +232,8 @@ class CombateTerrestreState extends ChangeNotifier {
   Future<String?> salvar() async {
     if (_salvando) return 'Salvamento já em andamento.';
     if (!validarFormulario()) return 'Verifique os campos obrigatórios e a localização no mapa.';
+    final erroValidacao = TerrestreValidator().firstError(this);
+    if (erroValidacao != null) return erroValidacao;
     _salvando = true;
     _setLoading(true);
     bool sucesso = false;

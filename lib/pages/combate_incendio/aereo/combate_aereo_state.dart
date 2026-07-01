@@ -10,6 +10,7 @@ import 'package:fortivus_app/model/relatorio_aereo.dart';
 import 'package:fortivus_app/services/responder/responder_aereo_service.dart';
 import 'package:fortivus_app/services/local_db_service.dart';
 import 'package:fortivus_app/services/attachment_upload_service.dart';
+import 'package:fortivus_app/validation/report_validator.dart';
 
 class CombateAereoState extends ChangeNotifier {
   static const String categoria = 'AEREO';
@@ -241,6 +242,8 @@ class CombateAereoState extends ChangeNotifier {
   Future<String?> salvar() async {
     if (_salvando) return 'Salvamento já em andamento.';
     if (!validarFormulario()) return 'Preencha os campos obrigatórios e a localização.';
+    final erroValidacao = AereoValidator().firstError(this);
+    if (erroValidacao != null) return erroValidacao;
     _salvando = true;
     _setLoading(true);
     bool sucesso = false;
