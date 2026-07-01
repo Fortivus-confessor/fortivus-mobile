@@ -93,9 +93,6 @@ class PreferencesProvider implements IPreferencesProvider {
 class _SyncLogger {
   static const String _prefix = '[SyncService]';
   _SyncLogger._();
-  static void debug(String message) {
-    if (kDebugMode) debugPrint('$_prefix 🔍 $message');
-  }
 
   static void info(String message) => debugPrint('$_prefix ℹ️ $message');
   static void success(String message) => debugPrint('$_prefix ✅ $message');

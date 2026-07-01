@@ -8,7 +8,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:fortivus_app/enums/enums.dart';
 import 'package:fortivus_app/model/relatorio_aereo.dart';
 import 'package:fortivus_app/services/responder/responder_aereo_service.dart';
-import 'package:fortivus_app/services/local_db_service.dart';
 import 'package:fortivus_app/services/attachment_upload_service.dart';
 import 'package:fortivus_app/validation/report_validator.dart';
 
@@ -251,13 +250,15 @@ class CombateAereoState extends ChangeNotifier {
       if (_idRegistroAtual == null) {
         return 'Despacho não identificado.';
       }
-      final relatorio = _construirRelatorio();
-      await _service.salvarResposta(resposta: relatorio);
+      // LOCAL-FIRST: evidências e resposta gravadas localmente antes de rede;
+      // salvarResposta dispara o sync em background e libera o usuário na hora.
       await AttachmentUploadService.instance.salvarOuEnfileirar(
         _idRegistroAtual!,
         arquivosNotifier.value,
         categoria,
       );
+      final relatorio = _construirRelatorio();
+      await _service.salvarResposta(resposta: relatorio);
       sucesso = true;
       return null;
     } catch (e, st) {

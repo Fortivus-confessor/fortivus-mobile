@@ -239,13 +239,16 @@ class CombateTerrestreState extends ChangeNotifier {
     bool sucesso = false;
     try {
       if (_idRegistroAtual == null) return 'Despacho não identificado.';
-      final relatorio = _construirRelatorio();
-      await _service.salvarResposta(resposta: relatorio);
+      // LOCAL-FIRST: enfileira as evidências e grava a resposta localmente antes
+      // de qualquer rede. salvarResposta dispara o sync em background e retorna
+      // imediatamente, liberando o usuário mesmo sem internet.
       await AttachmentUploadService.instance.salvarOuEnfileirar(
         _idRegistroAtual!,
         arquivosNotifier.value,
         categoria,
       );
+      final relatorio = _construirRelatorio();
+      await _service.salvarResposta(resposta: relatorio);
       sucesso = true;
       return null;
     } catch (e, st) {

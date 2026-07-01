@@ -240,13 +240,15 @@ class CombateMaquinarioState extends ChangeNotifier {
     bool sucesso = false;
     try {
       if (_idRegistroAtual == null) return 'Despacho não identificado.';
-      final relatorio = _construirRelatorio();
-      await _service.salvarResposta(resposta: relatorio);
+      // LOCAL-FIRST: evidências e resposta gravadas localmente antes de rede;
+      // salvarResposta dispara o sync em background e libera o usuário na hora.
       await AttachmentUploadService.instance.salvarOuEnfileirar(
         _idRegistroAtual!,
         arquivosNotifier.value,
         categoria,
       );
+      final relatorio = _construirRelatorio();
+      await _service.salvarResposta(resposta: relatorio);
       sucesso = true;
       return null;
     } catch (e, st) {

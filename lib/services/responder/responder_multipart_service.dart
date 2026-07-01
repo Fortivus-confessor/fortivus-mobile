@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:fortivus_app/services/auth_service.dart';
 import 'package:fortivus_app/services/local_db_service.dart';
+import 'package:fortivus_app/services/sync_service.dart';
 import 'package:fortivus_app/util/auth_http_helper.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +21,11 @@ abstract class ResponderMultipartService implements ResponderBaseService {
   @override
   String get categoria;
 
+  /// LOCAL-FIRST: o banco local (SQLite/SQLCipher) é a fonte única da verdade.
+  /// A resposta é sempre gravada localmente primeiro — mesmo com internet — e o
+  /// usuário é liberado imediatamente. A sincronização com o servidor acontece
+  /// em background (fire-and-forget) e é reintentada pelo SyncService periódico
+  /// caso falhe. Assim o app nunca trava o usuário esperando a rede no mato.
   @override
   Future<void> salvarResposta({
     required RespostaModelo resposta,
@@ -31,31 +38,24 @@ abstract class ResponderMultipartService implements ResponderBaseService {
 
     try {
       _respostasEmProcessamento.add(id);
-
-      final connectivityResult = await Connectivity().checkConnectivity();
-      final hasConnection = !connectivityResult.contains(ConnectivityResult.none);
-
-      final Map<String, dynamic> dadosJson = resposta.toJson();
-
-      if (hasConnection) {
-        try {
-          await _enviarRespostaJson(id: id, dadosJson: dadosJson);
-          await LocalDbService.instance.removerRespostaPendenteByDespacho(id);
-          await LocalDbService.instance.updateDespachoStatus(id, 'CONCLUIDO');
-          ResponderSharedHelper.log('✅ [$categoria] Enviado com sucesso');
-          return;
-        } catch (e) {
-          ResponderSharedHelper.log('⚠️ [$categoria] Falha online: $e. Salvando localmente.');
-          await _salvarLocalmente(id, dadosJson);
-        }
-      } else {
-        await _salvarLocalmente(id, dadosJson);
-      }
+      await _salvarLocalmente(id, resposta.toJson());
     } catch (e) {
-      ResponderSharedHelper.log('❌ [$categoria] Erro fatal: $e');
+      ResponderSharedHelper.log('❌ [$categoria] Erro ao salvar localmente: $e');
       rethrow;
     } finally {
       _respostasEmProcessamento.remove(id);
+    }
+
+    // Dispara a sincronização em background sem aguardar — o retorno já liberou
+    // a UI. Se não houver rede/sessão válida agora, o SyncService reenvia depois.
+    unawaited(_dispararSyncBackground());
+  }
+
+  Future<void> _dispararSyncBackground() async {
+    try {
+      await SyncService().syncRapid();
+    } catch (e) {
+      ResponderSharedHelper.log('⚠️ [$categoria] Sync em background falhou (será reintentado): $e');
     }
   }
 

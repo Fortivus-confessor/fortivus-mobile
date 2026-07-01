@@ -1,4 +1,3 @@
-import 'package:shared_preferences/shared_preferences.dart';
 
 class EnvironmentConfig {
   static late String issuer;

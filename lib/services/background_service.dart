@@ -18,7 +18,6 @@ class _SyncLogger {
   static void debug(String msg) { if (kDebugMode) debugPrint('$_prefix 🔍 $msg'); }
   static void info(String msg) { debugPrint('$_prefix ℹ️ $msg'); }
   static void success(String msg) { debugPrint('$_prefix ✅ $msg'); }
-  static void warning(String msg) { debugPrint('$_prefix ⚠️ $msg'); }
   static void error(String msg) { debugPrint('$_prefix ❌ $msg'); }
 }
 
